@@ -157,81 +157,6 @@ const Signup = ({ navigation }) => {
     }
   };
 
-  const EmailForm = () => (
-    <View style={styles.form}>
-      <CustomInput
-        label={"Email"}
-        placeholder={"Enter Email"}
-        value={email}
-        onChangeText={setEmail}
-      />
-      <CustomInput
-        label={"Full Name"}
-        placeholder={"Enter Full Name"}
-        value={name}
-        onChangeText={setName}
-      />
-      <CustomInput
-        label={"Password"}
-        placeholder={"Create Password"}
-        value={password}
-        onChangeText={setPassword}
-        isPassword
-      />
-      <CustomInput
-        label={"Re-enter Password"}
-        placeholder={"Re-enter Password"}
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-        isPassword
-      />
-      <View style={styles.buttonContainer}>
-        <CustomButton
-          onClick={onSignUpPress}
-          title={"Create an Account"}
-          textColor={"white"}
-        />
-        <TouchableOpacity
-          onPress={() => {
-            navigation.navigate(screens.Signin);
-          }}
-        >
-          <Text style={styles.signInText}>
-            Already a Member?
-            <Text style={styles.signInLink}> Sign In</Text>
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const VerifyCode = () => (
-    <View style={{ marginTop: 40, width: "90%", alignSelf: "center" }}>
-      <Text
-        style={{
-          alignSelf: "center",
-          fontSize: 16,
-          textAlign: "center",
-          fontWeight: "bold",
-        }}
-      >
-        Verify Code sent to {email}
-      </Text>
-      <CustomInput
-        value={code}
-        onChangeText={setCode}
-        isPassword
-        label={undefined}
-        placeholder={undefined}
-      />
-      <CustomButton
-        onClick={onPressVerify}
-        title={"Confirm Code"}
-        textColor={"white"}
-      />
-    </View>
-  );
-
   return (
     <SafeAreaView style={styles.safeAreaView}>
       <KeyboardAvoidingView
@@ -246,7 +171,78 @@ const Signup = ({ navigation }) => {
             />
             <Text style={styles.title}>Create your Account</Text>
           </View>
-          {pendingVerification ? <VerifyCode /> : <EmailForm />}
+          {pendingVerification ?
+            <View style={{ marginTop: 40, width: "90%", alignSelf: "center" }}>
+              <Text
+                style={{
+                  alignSelf: "center",
+                  fontSize: 16,
+                  textAlign: "center",
+                  fontWeight: "bold",
+                }}
+              >
+                Verify Code sent to {email}
+              </Text>
+              <CustomInput
+                value={code}
+                onChangeText={setCode}
+                isPassword
+                label={undefined}
+                placeholder={undefined}
+              />
+              <CustomButton
+                onClick={onPressVerify}
+                title={"Confirm Code"}
+                textColor={"white"}
+              />
+            </View>
+            :
+            <View style={styles.form}>
+              <CustomInput
+                label={"Email"}
+                placeholder={"Enter Email"}
+                value={email}
+                onChangeText={setEmail}
+              />
+              <CustomInput
+                label={"Full Name"}
+                placeholder={"Enter Full Name"}
+                value={name}
+                onChangeText={setName}
+              />
+              <CustomInput
+                label={"Password"}
+                placeholder={"Create Password"}
+                value={password}
+                onChangeText={setPassword}
+                isPassword
+              />
+              <CustomInput
+                label={"Re-enter Password"}
+                placeholder={"Re-enter Password"}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                isPassword
+              />
+              <View style={styles.buttonContainer}>
+                <CustomButton
+                  onClick={onSignUpPress}
+                  title={"Create an Account"}
+                  textColor={"white"}
+                />
+                <TouchableOpacity
+                  onPress={() => {
+                    navigation.navigate(screens.Signin);
+                  }}
+                >
+                  <Text style={styles.signInText}>
+                    Already a Member?
+                    <Text style={styles.signInLink}> Sign In</Text>
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          }
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

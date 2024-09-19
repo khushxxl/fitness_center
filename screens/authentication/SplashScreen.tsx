@@ -104,13 +104,15 @@ const SplashScreen = ({ navigation }) => {
         setappUser(userData);
 
         if (userData != null) {
-          navigation.navigate("HomeStack");
+          navigation.replace("HomeStack");
         }
       } else {
-        navigation.navigate(screens.AuthScreen);
+        if(isSignedIn){ navigation.replace("HomeStack");}
+        else{navigation.replace(screens.AuthScreen)};
       }
     } else {
-      navigation.navigate(screens.AuthScreen);
+      if(isSignedIn){ navigation.replace("HomeStack");}
+      else{navigation.replace(screens.AuthScreen)};
     }
   };
 
