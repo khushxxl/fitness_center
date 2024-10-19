@@ -10,95 +10,95 @@ import React, { useContext, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { customAppStyles } from "../../utils/styles";
 import CustomButton from "../../components/CustomButton";
-import { useStripe } from "@stripe/stripe-react-native";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "../../utils/firebase";
-import { AppContext } from "../../context/AppContext";
-import ConfettiCannon from "react-native-confetti-cannon";
-import { screens } from "../../utils/constants";
+// import { useStripe } from "@stripe/stripe-react-native";
+// import { doc, updateDoc } from "firebase/firestore";
+// import { db } from "../../utils/firebase";
+// import { AppContext } from "../../context/AppContext";
+// import ConfettiCannon from "react-native-confetti-cannon";
+// import { screens } from "../../utils/constants";
 
 const PaymentScreen = ({ navigation, route }) => {
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  // const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false);
 
-  const { appUser, getUser } = useContext(AppContext);
+  // const { appUser, getUser } = useContext(AppContext);
 
-  const API_URL = "http://localhost:8000";
+  // const API_URL = "http://localhost:8000";
 
-  const fetchPaymentSheetParams = async () => {
-    const amount = selectedPlan.price;
-    const response = await fetch(`${API_URL}/payment-sheet`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ amount: 1099 }),
-    });
-    const { paymentIntent, ephemeralKey, customer } = await response.json();
+  // const fetchPaymentSheetParams = async () => {
+  //   const amount = selectedPlan.price;
+  //   const response = await fetch(`${API_URL}/payment-sheet`, {
+  //     method: "POST",
+  //     headers: {
+  //       "Content-Type": "application/json",
+  //     },
+  //     body: JSON.stringify({ amount: 1099 }),
+  //   });
+  //   const { paymentIntent, ephemeralKey, customer } = await response.json();
 
-    return {
-      paymentIntent,
-      ephemeralKey,
-      customer,
-    };
-  };
+  //   return {
+  //     paymentIntent,
+  //     ephemeralKey,
+  //     customer,
+  //   };
+  // };
 
-  const initializePaymentSheet = async () => {
-    const { paymentIntent, ephemeralKey, customer } =
-      await fetchPaymentSheetParams();
+  // const initializePaymentSheet = async () => {
+  //   const { paymentIntent, ephemeralKey, customer } =
+  //     await fetchPaymentSheetParams();
 
-    const { error } = await initPaymentSheet({
-      merchantDisplayName: "Example, Inc.",
-      customerId: customer,
-      customerEphemeralKeySecret: ephemeralKey,
-      paymentIntentClientSecret: paymentIntent,
-      // Set `allowsDelayedPaymentMethods` to true if your business can handle payment
-      //methods that complete payment after a delay, like SEPA Debit and Sofort.
-      allowsDelayedPaymentMethods: true,
-      defaultBillingDetails: {
-        name: "Jane Doe",
-      },
-    });
-    if (!error) {
-      setLoading(true);
-    }
-  };
+  //   const { error } = await initPaymentSheet({
+  //     merchantDisplayName: "Example, Inc.",
+  //     customerId: customer,
+  //     customerEphemeralKeySecret: ephemeralKey,
+  //     paymentIntentClientSecret: paymentIntent,
+  //     // Set `allowsDelayedPaymentMethods` to true if your business can handle payment
+  //     //methods that complete payment after a delay, like SEPA Debit and Sofort.
+  //     allowsDelayedPaymentMethods: true,
+  //     defaultBillingDetails: {
+  //       name: "Jane Doe",
+  //     },
+  //   });
+  //   if (!error) {
+  //     setLoading(true);
+  //   }
+  // };
 
   // useEffect(() => {
   //   initializePaymentSheet();
   // }, []);
 
-  const openPaymentSheet = async () => {
-    const { error } = await presentPaymentSheet();
+  // const openPaymentSheet = async () => {
+  //   const { error } = await presentPaymentSheet();
 
-    if (error) {
-      Alert.alert(`Error code: ${error.code}`, error.message);
-    } else {
-      Alert.alert("Success", "Your order is confirmed!");
-      await updateDoc(doc(db, "users", appUser?.email), {
-        subsription: true,
-        subscription: new Date(),
-      }).then(async () => {
-        await getUser();
-        navigation.navigate(screens.PaymentConfirm);
-      });
-    }
-  };
-  const plans = [
-    {
-      plan: "Basic",
-      price: 1099,
-      features: ["Benefit 1", "Benefit 2", "Benefit 3"],
-    },
-    {
-      plan: "Premium",
-      price: 2099,
-      features: ["Benefit 1", "Benefit 2", "Benefit 3"],
-    },
-  ];
+  //   if (error) {
+  //     Alert.alert(`Error code: ${error.code}`, error.message);
+  //   } else {
+  //     Alert.alert("Success", "Your order is confirmed!");
+  //     await updateDoc(doc(db, "users", appUser?.email), {
+  //       subsription: true,
+  //       subscription: new Date(),
+  //     }).then(async () => {
+  //       await getUser();
+  //       navigation.navigate(screens.PaymentConfirm);
+  //     });
+  //   }
+  // };
+  // const plans = [
+  //   {
+  //     plan: "Basic",
+  //     price: 1099,
+  //     features: ["Benefit 1", "Benefit 2", "Benefit 3"],
+  //   },
+  //   {
+  //     plan: "Premium",
+  //     price: 2099,
+  //     features: ["Benefit 1", "Benefit 2", "Benefit 3"],
+  //   },
+  // ];
 
-  const fromScreen = route?.params?.from;
+  // const fromScreen = route?.params?.from;
 
   const [selectedPlan, setselectedPlan] = useState(plans[0]);
   const SelectionComponent = ({ data }) => {
@@ -112,7 +112,7 @@ const PaymentScreen = ({ navigation, route }) => {
         }}
         onPress={() => setselectedPlan(data)}
       >
-        <View
+        {/* <View
           style={{
             flexDirection: "row",
             alignItems: "center",
@@ -168,7 +168,7 @@ const PaymentScreen = ({ navigation, route }) => {
               </View>
             );
           })}
-        </View>
+        </View> */}
       </TouchableOpacity>
     );
   };

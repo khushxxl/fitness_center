@@ -42,7 +42,7 @@ const Library = ({ navigation }) => {
   };
 
   useEffect(() => {
-    // getSettings();
+    getSettings();
   }, []);
 
   const onRefresh = React.useCallback(() => {
