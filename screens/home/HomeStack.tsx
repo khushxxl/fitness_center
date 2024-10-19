@@ -16,6 +16,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import TrackProgress from "./TrackProgress";
 import WorkoutLibrary from "./WorkoutLibrary";
+import DetailRecipe from "../DetailRecipe";
 
 const HomeStack = () => {
   const Stack = createNativeStackNavigator();
@@ -73,6 +74,11 @@ const HomeStack = () => {
       <Stack.Screen
         name={screens.WorkoutLibrary}
         component={WorkoutLibrary}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name={screens.DetailRecipe}
+        component={DetailRecipe}
         options={{ headerShown: false }}
       />
       <Stack.Screen

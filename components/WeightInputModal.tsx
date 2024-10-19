@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   View,
+  Alert,
 } from "react-native";
 import React, { useContext, useState } from "react";
 import Modal from "react-native-modal";
@@ -31,7 +32,11 @@ const WeightInputModal = ({
   const { appUser, getUser } = useContext(AppContext);
 
   const addWeight = async () => {
-    console.log(weightInput);
+    if (!weightInput) {
+      Alert.alert("Error", "Please enter a weight value.");
+      return;
+    }
+
     try {
       setloading(true);
       const imageURLS = await uploadImages();
@@ -56,6 +61,7 @@ const WeightInputModal = ({
       setModal(false);
     } catch (error) {
       console.error("Error adding weight: ", error);
+      Alert.alert("Error", "Failed to save progress. Please try again.");
     } finally {
       setloading(false);
     }
@@ -64,34 +70,47 @@ const WeightInputModal = ({
   const chooseProgressImages = async () => {
     try {
       let result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 1,
+        quality: 0.8,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setimageCollection([...imageCollection, result.assets[0].uri]);
+        setimageCollection((prevCollection) => [
+          ...prevCollection,
+          result.assets[0].uri,
+        ]);
       }
     } catch (error) {
       console.error("Error choosing images: ", error);
+      Alert.alert("Error", "Failed to choose image. Please try again.");
     }
   };
 
   const uploadImages = async () => {
-    const promises = imageCollection.map(async (uri) => {
-      const imageRef = ref(
-        storage,
-        `users/progressImages/${
-          appUser?.name
-        }/Weight - ${weightInput} kg/${Date.now()}`
-      );
-      const imageBlob = await getBlobFroUri(uri);
-      await uploadBytes(imageRef, imageBlob);
-      return await getDownloadURL(imageRef);
-    });
-
-    return Promise.all(promises);
+    const uploadedUrls = [];
+    for (const uri of imageCollection) {
+      try {
+        const imageRef = ref(
+          storage,
+          `users/progressImages/${
+            appUser?.name
+          }/Weight - ${weightInput} kg/${Date.now()}`
+        );
+        const imageBlob = await getBlobFroUri(uri);
+        await uploadBytes(imageRef, imageBlob);
+        const downloadUrl = await getDownloadURL(imageRef);
+        uploadedUrls.push(downloadUrl);
+      } catch (error) {
+        console.error("Error uploading image:", error);
+        Alert.alert(
+          "Error",
+          "Failed to upload an image. Continuing with others."
+        );
+      }
+    }
+    return uploadedUrls;
   };
 
   return (
@@ -115,6 +134,7 @@ const WeightInputModal = ({
           placeholder={"Weight"}
           value={weightInput}
           onChangeText={(text) => setWeightInput(text)}
+          type="numeric"
         />
 
         <CustomButton
@@ -156,6 +176,7 @@ const WeightInputModal = ({
             onClick={addWeight}
             title={"Save Progress"}
             textColor={"white"}
+            disabled={loading}
           />
         </View>
       </View>

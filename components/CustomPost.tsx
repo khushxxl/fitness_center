@@ -4,6 +4,7 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
+  FlatList,
 } from "react-native";
 import React, { useContext, useEffect, useState } from "react";
 import { Image } from "react-native";
@@ -16,9 +17,11 @@ import {
   doc,
   updateDoc,
   onSnapshot,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "../utils/firebase";
 import CustomInput from "./CustomInput";
+import { getAuth } from "firebase/auth";
 
 const CustomPost = ({ data }) => {
   const [isLiked, setIsLiked] = useState<boolean>(false);
@@ -27,9 +30,25 @@ const CustomPost = ({ data }) => {
   const [isCommenting, setisCommenting] = useState(false);
   const [comment, setcomment] = useState("");
   const [comments, setComments] = useState(data?.comments || []);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  const auth = getAuth();
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      if (auth.currentUser) {
+        const userDocRef = doc(db, "users", auth.currentUser.email);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          setCurrentUser(userDocSnap.data());
+        }
+      }
+    };
+    fetchUser();
+  }, [auth.currentUser]);
 
   const isLikedChecker = () => {
-    if (data?.likedBy?.includes(appUser?.email)) {
+    if (data?.likedBy?.includes(auth.currentUser?.email)) {
       setIsLiked(true);
     } else {
       setIsLiked(false);
@@ -44,8 +63,8 @@ const CustomPost = ({ data }) => {
 
     await updateDoc(postRef, {
       likedBy: newIsLiked
-        ? arrayUnion(appUser?.email)
-        : arrayRemove(appUser?.email),
+        ? arrayUnion(auth.currentUser?.email)
+        : arrayRemove(auth.currentUser?.email),
     }).then(() => {
       console.log(newIsLiked ? "Post liked" : "Post unliked");
     });
@@ -54,16 +73,33 @@ const CustomPost = ({ data }) => {
   const addComment = async () => {
     const postRef = doc(db, "posts", data?.id);
     await updateDoc(postRef, {
-      comments: arrayUnion({ comment: comment, doneBy: appUser?.email }),
+      comments: arrayUnion({
+        id: Date.now().toString(),
+        comment: comment,
+        doneBy: auth.currentUser?.email,
+        userPhoto: currentUser?.photo,
+        userName: currentUser?.name,
+        timestamp: new Date().toISOString(),
+      }),
     }).then(() => {
       setcomment("");
       console.log("comment added");
     });
   };
 
+  const deleteComment = async (commentId) => {
+    const postRef = doc(db, "posts", data?.id);
+    const updatedComments = comments.filter((c) => c.id !== commentId);
+    await updateDoc(postRef, {
+      comments: updatedComments,
+    }).then(() => {
+      console.log("comment deleted");
+    });
+  };
+
   useEffect(() => {
     isLikedChecker();
-  }, [data?.likedBy, appUser?.email]);
+  }, [data?.likedBy, auth.currentUser?.email]);
 
   useEffect(() => {
     const postRef = doc(db, "posts", data?.id);
@@ -82,6 +118,24 @@ const CustomPost = ({ data }) => {
     setIsLoading(false);
   };
 
+  const renderComment = ({ item }) => {
+    console.log();
+    return (
+      <View style={styles.commentContainer}>
+        <View style={styles.commentContent}>
+          <Text>{item.comment}</Text>
+        </View>
+        {item.doneBy === auth.currentUser?.email && (
+          <TouchableOpacity
+            onPress={() => deleteComment(item.id)}
+            style={styles.deleteButton}
+          >
+            <Icon name="trash" size={20} color="red" />
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
   return (
     <View>
       <View style={customAppStyles.horizontalLine} />
@@ -146,21 +200,16 @@ const CustomPost = ({ data }) => {
             size={30}
           />
         </TouchableOpacity>
-        <TouchableOpacity>
-          <Icon
-            color={"gray"}
-            onPress={() => setisCommenting(!isCommenting)}
-            name="comments-o"
-            size={30}
-          />
+        <TouchableOpacity onPress={() => setisCommenting(!isCommenting)}>
+          <Icon color={"gray"} name="comments-o" size={30} />
         </TouchableOpacity>
         <TouchableOpacity>
           <Icon color={"gray"} name="share" size={30} />
         </TouchableOpacity>
       </View>
       {isCommenting && (
-        <View>
-          <View>
+        <View style={styles.commentsSection}>
+          <View style={styles.addCommentContainer}>
             <CustomInput
               mt={20}
               label={"Add a Comment"}
@@ -170,37 +219,27 @@ const CustomPost = ({ data }) => {
             />
             <TouchableOpacity
               onPress={addComment}
-              style={{ alignSelf: "flex-end", marginRight: 20, marginTop: 10 }}
+              style={styles.postCommentButton}
             >
-              <Text style={{ color: "blue", fontSize: 14, fontWeight: "bold" }}>
-                Post
-              </Text>
+              <Text style={styles.postCommentText}>Post</Text>
             </TouchableOpacity>
           </View>
 
-          <View>
-            <Text style={{ fontWeight: "500", marginLeft: 20 }}>
-              {"All Comments"}
-            </Text>
-            {comments.map((data, i) => {
-              return (
-                <View
-                  style={{
-                    // width: "95%",
-                    alignSelf: "flex-start",
-                    backgroundColor: "lightgray",
-                    padding: 13,
-                    borderRadius: 10,
-                    marginTop: 10,
-                    marginLeft: 20,
-                  }}
-                  key={i}
-                >
-                  <Text style={{ fontWeight: "500" }}>{data?.comment}</Text>
-                </View>
-              );
-            })}
+          <View style={styles.commentsListContainer}>
+            <Text style={styles.commentsHeader}>All Comments</Text>
+            <FlatList
+              data={comments}
+              renderItem={renderComment}
+              keyExtractor={(item) => item.id}
+            />
           </View>
+
+          <TouchableOpacity
+            style={styles.closeCommentsButton}
+            onPress={() => setisCommenting(false)}
+          >
+            <Text style={styles.closeCommentsText}>Close Comments</Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -209,4 +248,62 @@ const CustomPost = ({ data }) => {
 
 export default CustomPost;
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  commentsSection: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+  },
+  addCommentContainer: {
+    marginBottom: 20,
+  },
+  postCommentButton: {
+    alignSelf: "flex-end",
+    marginTop: 10,
+  },
+  postCommentText: {
+    color: "blue",
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  commentsListContainer: {
+    marginBottom: 20,
+  },
+  commentsHeader: {
+    fontWeight: "500",
+    marginBottom: 10,
+  },
+  commentContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "lightgray",
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  commentUserPhoto: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    marginRight: 10,
+  },
+  commentContent: {
+    flex: 1,
+  },
+  commentUserName: {
+    fontWeight: "bold",
+    marginBottom: 5,
+  },
+  deleteButton: {
+    padding: 5,
+  },
+  closeCommentsButton: {
+    backgroundColor: "#ddd",
+    padding: 10,
+    borderRadius: 5,
+    alignItems: "center",
+  },
+  closeCommentsText: {
+    color: "blue",
+    fontWeight: "bold",
+  },
+});

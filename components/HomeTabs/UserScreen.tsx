@@ -16,7 +16,7 @@ import React, { useContext, useEffect, useState } from "react";
 import Carousel, { Pagination } from "react-native-snap-carousel";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Progress from "react-native-progress";
-import HomeHeader from "../HomeHeader";
+
 import { images, screens } from "../../utils/constants";
 import SearchExercise from "../SearchExercise";
 import usePedometer from "../../hooks/usePedometer";
@@ -25,23 +25,17 @@ import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import { db } from "../../utils/firebase";
 import { AppContext } from "../../context/AppContext";
 import * as MailComposer from "expo-mail-composer";
-import { useUser } from "@clerk/clerk-expo";
+import { getAuth } from "firebase/auth";
+import HomeHeader from "../HomeHeader";
 
 const UserScreen = ({ navigation }) => {
   const [status, setStatus] = useState(null);
 
-  const { user } = useUser();
+  // const { user } = useUser();
+  const auth = getAuth();
 
-  const { setappUser } = useContext(AppContext);
-  const getUser = async () => {
-    const docRef = doc(db, "users", user?.emailAddresses[0].emailAddress);
-    const docSnap = await getDoc(docRef);
-
-    if (docSnap.exists()) {
-      setappUser(docSnap.data());
-    }
-  };
-
+  const user = auth?.currentUser;
+  console.log("HomeScreen", user);
   const HomeCard = ({
     cardTitle,
     imageURL,
@@ -91,22 +85,15 @@ const UserScreen = ({ navigation }) => {
   const { promoSections, setpromoSections } = useContext(AppContext);
 
   const handleEmailPress = () => {
-    const email = "example@example.com";
-    const subject = "Hello from Fit Centre app!";
-    const body = "This is the body of the email.";
+    const calendarUrl = "https://cal.com/marc-risi/15min";
 
-    // Construct the mailto URL
-    const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(
-      subject
-    )}&body=${encodeURIComponent(body)}`;
-
-    // Open the email client
-    Linking.openURL(mailtoUrl).catch((err) =>
-      console.error("Error opening email client:", err)
+    // Open the calendar URL
+    Linking.openURL(calendarUrl).catch((err) =>
+      console.error("Error opening calendar URL:", err)
     );
   };
   // const { steps, distance, flights } = useHealthData();
-  // const { isPedometerAvailable, pastStepCount } = usePedometer();
+  const { isPedometerAvailable, stepCount } = usePedometer();
 
   // const [promoSections, setpromoSections] = useState([]);
   const getHomePromo = async () => {
@@ -121,7 +108,6 @@ const UserScreen = ({ navigation }) => {
 
   useEffect(() => {
     getHomePromo();
-    getUser();
   }, []);
 
   const HomeSectionButton = ({ title, onPress }) => {
@@ -146,6 +132,7 @@ const UserScreen = ({ navigation }) => {
       </TouchableOpacity>
     );
   };
+
   const [showProfileModal, setshowProfileModal] = useState(false);
   return (
     <SafeAreaView style={{ height: "100%" }}>
@@ -158,12 +145,12 @@ const UserScreen = ({ navigation }) => {
       )}
       <ScrollView style={{ width: "100%", height: "100%" }}>
         <HomeHeader
-          onImagePress={() => setshowProfileModal(true)}
           navigation={navigation}
+          onImagePress={() => setshowProfileModal(true)}
         />
         <View style={{ marginLeft: 20, marginTop: 10 }}>
           <Text style={{ fontWeight: "bold", fontSize: 20 }}>
-            Hey {user?.username}, Good Morning!
+            Hey {user?.displayName}, Good Morning!
           </Text>
         </View>
         <Text
@@ -236,11 +223,17 @@ const UserScreen = ({ navigation }) => {
             justifyContent: "space-evenly",
           }}
         >
-          <StatComponent text={"Steps"} data={0} />
+          <StatComponent
+            text={"Steps"}
+            data={
+              isPedometerAvailable === "checking"
+                ? "Checking..."
+                : isPedometerAvailable === "true"
+                  ? stepCount
+                  : "Not available"
+            }
+          />
           <StatComponent text={"Sleep Tracker"} data={"Coming Soon"} />
-
-          {/* <StatComponent text={"Steps"} data={"Test"} /> */}
-          {/* <StatComponent text={"Avg Calories"} data={"1670"} /> */}
         </View>
 
         <View

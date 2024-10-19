@@ -21,10 +21,13 @@ import {
 import { db } from "../../utils/firebase";
 
 const Inbox = ({ navigation }) => {
-  const { appUser, checkTrainer } = useContext(AppContext);
+  const { userData, checkTrainer } = useContext(AppContext);
+  console.log("inbox", userData);
   const [chats, setchats] = useState<any>([]);
   const [inboxMessages, setinboxMessages] = useState<any>([]);
   const [trainerData, settrainerData] = useState<any>();
+
+  console.log("trainer->", trainerData);
 
   //   /test01@gmail.comtrainer@gmail.com/acht;
 
@@ -35,7 +38,7 @@ const Inbox = ({ navigation }) => {
   }, []);
 
   const getTrainer = async () => {
-    const docRef = doc(db, "users", appUser?.trainer);
+    const docRef = doc(db, "users", userData?.trainer);
     const docSnap = await getDoc(docRef);
     settrainerData(docSnap.data());
     console.log("Trainer from get Trainer", docSnap.data());
@@ -44,12 +47,12 @@ const Inbox = ({ navigation }) => {
   const getAllInChatMessages = async () => {
     const query = collection(
       db,
-      `chats/${appUser?.email + trainerData?.email}/chat`
+      `chats/${userData?.email + userData?.trainer}/chat`
     );
     const querySnapshot = await getDocs(query);
     const messages = [];
     querySnapshot.forEach(async (doc) => {
-      console.log(doc.data());
+      // console.log(doc.data());
       await messages.push(doc.data());
     });
     setchats(messages);
@@ -71,7 +74,7 @@ const Inbox = ({ navigation }) => {
 
   const getTrainerUserList = async () => {
     const ref = collection(db, "users");
-    const queryData = query(ref, where("trainer", "==", appUser?.email));
+    const queryData = query(ref, where("trainer", "==", userData?.email));
     const querySnapshot = await getDocs(queryData);
     const users = [];
     querySnapshot.forEach(async (doc) => {
@@ -118,15 +121,15 @@ const Inbox = ({ navigation }) => {
         }
         contentContainerStyle={{ height: "100%" }}
       >
-        {!appUser?.isTrainer && (
+        {!userData?.isTrainer && (
           <ChatBox
-            sender={appUser}
+            sender={userData}
             navigation={navigation}
             reciever={trainerData}
             data={trainerData}
           />
         )}
-        {appUser?.isTrainer &&
+        {userData?.isTrainer &&
           trainerUsers &&
           trainerUsers.map((data, i) => {
             return (
@@ -134,7 +137,7 @@ const Inbox = ({ navigation }) => {
                 key={i}
                 data={data}
                 navigation={navigation}
-                sender={appUser}
+                sender={userData}
                 reciever={data}
               />
             );

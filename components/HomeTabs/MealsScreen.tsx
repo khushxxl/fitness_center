@@ -15,7 +15,7 @@ import Recipies from "../Recipies";
 import MyMeals from "../MyMeals";
 
 const MealsScreen = ({ navigation }) => {
-  const [screenSelected, setscreenSelected] = useState(screens.Recipie);
+  const [screenSelected, setscreenSelected] = useState(screens.MyMeals);
   return (
     <SafeAreaView style={{ height: "100%", backgroundColor: "white", flex: 1 }}>
       <View style={{ marginTop: 10 }}>
@@ -35,22 +35,6 @@ const MealsScreen = ({ navigation }) => {
       >
         <TouchableOpacity
           onPress={() => {
-            setscreenSelected(screens.Recipie);
-          }}
-          style={styles.optionBox}
-        >
-          <Text
-            style={{
-              fontSize: 16,
-              fontWeight: "bold",
-              color: screenSelected == screens.Recipie ? "black" : "gray",
-            }}
-          >
-            Recipies
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => {
             setscreenSelected(screens.MyMeals);
           }}
           style={styles.optionBox}
@@ -63,6 +47,22 @@ const MealsScreen = ({ navigation }) => {
             }}
           >
             My Meals
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => {
+            setscreenSelected(screens.Recipie);
+          }}
+          style={styles.optionBox}
+        >
+          <Text
+            style={{
+              fontSize: 16,
+              fontWeight: "bold",
+              color: screenSelected == screens.Recipie ? "black" : "gray",
+            }}
+          >
+            Recipes
           </Text>
         </TouchableOpacity>
       </View>

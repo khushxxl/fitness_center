@@ -66,6 +66,17 @@ const CustomBottomNav = ({
           name={activeScreen == screens.HomeScreen ? "home" : "home-outline"}
           title="Home"
         />
+        <Icon
+          name={activeScreen == screens.DiaryLog ? "book" : "book-outline"}
+          title={"Diary"}
+          onClick={() => {
+            if (appUser?.isTrainer) {
+              setActiveScreen(screens.TrainerHome);
+            } else {
+              setActiveScreen(screens.DiaryLog);
+            }
+          }}
+        />
         {/* <Icon
           title={"Home"}
           image={
@@ -117,17 +128,7 @@ const CustomBottomNav = ({
             }
           }}
         />
-        <Icon
-          name={activeScreen == screens.DiaryLog ? "book" : "book-outline"}
-          title={"Diary"}
-          onClick={() => {
-            if (appUser?.isTrainer) {
-              setActiveScreen(screens.TrainerHome);
-            } else {
-              setActiveScreen(screens.DiaryLog);
-            }
-          }}
-        />
+
         {/* <Icon title={"Posts"} image={images.postIcon} /> */}
         {/* <Icon
           onClick={() => {

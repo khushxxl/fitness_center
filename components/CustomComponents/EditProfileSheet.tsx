@@ -13,31 +13,45 @@ import { AppContext } from "../../context/AppContext";
 import * as ImagePicker from "expo-image-picker";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { getBlobFroUri, getRandomInt } from "../../utils/constants";
-import { doc, updateDoc } from "firebase/firestore";
-import { app, db, storage } from "../../utils/firebase";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { app, db, storage, auth } from "../../utils/firebase";
 import CustomIcon from "../CustomIcon";
 import CustomInput from "../CustomInput";
 import CustomButton from "../CustomButton";
-import { useUser } from "@clerk/clerk-expo";
 
 const EditProfileSheet = ({ modal, setModal }) => {
   const { appUser, getUser, setappUser } = useContext(AppContext);
 
-  const { user } = useUser();
-
   const [image, setImage] = useState(appUser?.photo);
-  const [userName, setuserName] = useState(user?.username);
-  const [userHeight, setuserHeight] = useState(
-    appUser?.userHealthData?.height
-      ? appUser?.userHealthData?.height?.toString() + " cm"
-      : ""
-  );
-  const [userWeight, setuserWeight] = useState(
-    appUser?.userHealthData?.weight
-      ? appUser?.userHealthData?.weight?.toString() + " kg"
-      : ""
-  );
-  const [userAge, setuserAge] = useState(appUser?.age?.toString());
+  const [userName, setuserName] = useState("");
+  const [userHeight, setuserHeight] = useState("");
+  const [userWeight, setuserWeight] = useState("");
+  const [userAge, setuserAge] = useState("");
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (auth.currentUser) {
+        const userDoc = await getDoc(doc(db, "users", auth.currentUser.email));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setuserName(userData.name || "");
+          setuserHeight(
+            userData.userHealthData?.height
+              ? `${userData.userHealthData.height} cm`
+              : ""
+          );
+          setuserWeight(
+            userData.userHealthData?.weight
+              ? `${userData.userHealthData.weight} kg`
+              : ""
+          );
+          setuserAge(userData.age ? userData.age.toString() : "");
+          setImage(userData.photo || null);
+        }
+      }
+    };
+    fetchUserData();
+  }, []);
 
   console.log(appUser);
   const updateUserInfo = async () => {
@@ -52,19 +66,15 @@ const EditProfileSheet = ({ modal, setModal }) => {
     }
 
     if (appUser?.name !== userName) {
-      await updateDoc(doc(db, "users", appUser?.email), {
-        name: userName,
-      });
+      updates.name = userName;
     }
 
     if (appUser?.age !== userAge) {
-      await updateDoc(doc(db, "users", appUser?.email), {
-        age: parseInt(userAge),
-      });
+      updates.age = parseInt(userAge);
     }
 
     if (Object.keys(updates).length > 0) {
-      await updateDoc(doc(db, "users", appUser?.email), updates).then(
+      await updateDoc(doc(db, "users", auth.currentUser.email), updates).then(
         async () => {
           await getUser().then(() => {
             setModal(false);
@@ -76,7 +86,7 @@ const EditProfileSheet = ({ modal, setModal }) => {
     if (image && image !== appUser?.photo) {
       const imageRef = ref(
         storage,
-        `users/profileImages/${appUser?.email + getRandomInt().toString()}`
+        `users/profileImages/${auth.currentUser.email + getRandomInt().toString()}`
       );
 
       const imageBlob = await getBlobFroUri(image);
@@ -87,7 +97,7 @@ const EditProfileSheet = ({ modal, setModal }) => {
       await uploadBytes(imageRef, imageBlob);
       const downloadURL = await getDownloadURL(imageRef);
 
-      await updateDoc(doc(db, "users", appUser?.email), {
+      await updateDoc(doc(db, "users", auth.currentUser.email), {
         photo: downloadURL,
       });
     }
@@ -169,13 +179,6 @@ const EditProfileSheet = ({ modal, setModal }) => {
           <KeyboardAvoidingView behavior="padding" style={{ width: "100%" }}>
             <View style={{ width: "100%" }}>
               <CustomInput
-                label={"Email"}
-                placeholder={"Enter your Email"}
-                value={user?.emailAddresses[0].emailAddress}
-                onChangeText={setuserName}
-                editable={false}
-              />
-              <CustomInput
                 label={"Name"}
                 placeholder={"Enter your name"}
                 value={userName}
@@ -191,14 +194,14 @@ const EditProfileSheet = ({ modal, setModal }) => {
                 <CustomInput
                   label={"Height"}
                   placeholder={"Current Height"}
-                  value={userHeight ? userHeight : 0}
+                  value={userHeight}
                   onChangeText={setuserHeight}
                   styles={{ minWidth: 150 }}
                 />
                 <CustomInput
                   label={"Weight"}
                   placeholder={"Current weight"}
-                  value={userWeight ? userWeight : 0}
+                  value={userWeight}
                   onChangeText={setuserWeight}
                   styles={{ minWidth: 150 }}
                 />
@@ -207,7 +210,7 @@ const EditProfileSheet = ({ modal, setModal }) => {
                 <CustomInput
                   label={"Age"}
                   placeholder={"Current Age"}
-                  value={userAge ? userAge : 0}
+                  value={userAge}
                   onChangeText={setuserAge}
                 />
               </View>

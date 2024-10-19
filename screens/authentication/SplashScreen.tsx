@@ -1,145 +1,143 @@
-import { ActivityIndicator, Image, StyleSheet, View } from "react-native";
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useState } from "react";
+import { View, Image, StyleSheet, Alert } from "react-native";
 import { BallIndicator } from "react-native-indicators";
-import { useNavigation } from "@react-navigation/native";
-import { screens } from "../../utils/constants";
 import { AppContext } from "../../context/AppContext";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { collection, doc, getDoc, getDocs } from "firebase/firestore";
-import { db } from "../../utils/firebase";
-import { useAuth, useUser } from "@clerk/clerk-expo";
+import {
+  getFirestore,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+} from "firebase/firestore";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { screens } from "../../utils/constants";
+import { auth, db } from "../../utils/firebase"; // Ensure your Firebase init is correct
 
 const SplashScreen = ({ navigation }) => {
   const {
-    appUser,
     setappUser,
-    promoSections,
     setpromoSections,
-    settingOptions,
     setsettingOptions,
-    allPosts,
     setallPosts,
-    userWorkoutLog,
     setuserWorkoutLog,
-    trainerWorkoutLog,
     settrainerWorkoutLog,
   } = useContext(AppContext);
-  // const navigation = useNavigation();
-  const { isSignedIn } = useAuth();
-  const { user } = useUser();
 
-  const getHomePromo = async () => {
-    const promos: any = [];
-    const querySnapshot = await getDocs(collection(db, "home"));
-    querySnapshot.forEach((doc) => {
-      promos.push(doc.data());
-      console.log(doc.id, " => ", doc.data());
-    });
-    setpromoSections(promos);
-  };
-  const getSettings = async () => {
-    const settings: any = [];
-    const querySnapshot = await getDocs(collection(db, "settings"));
-    querySnapshot.forEach((doc) => {
-      settings.push(doc.data());
-      console.log(doc.id, " => ", doc.data());
-    });
-    setsettingOptions(settings);
-  };
+  const [isLoading, setIsLoading] = useState(true);
 
-  const getAllPosts = async () => {
-    const allPostsInline: any = [];
-    const querySnapshot = await getDocs(collection(db, "posts"));
-    querySnapshot.forEach((doc) => {
-      allPostsInline.push({ id: doc.id, ...doc.data() });
-      console.log(doc.id, " => ", doc.data());
-    });
-    setallPosts(allPostsInline);
-  };
-
-  const getAllWorkoutLogs = async () => {
-    const workoutLogs = [];
-    const query = collection(db, `workoutlogs/${appUser?.email}/logs`);
-    const querySnapshot = await getDocs(query);
-    querySnapshot.forEach(async (doc) => {
-      await workoutLogs.push({ id: doc.id, ...doc.data() });
-      console.log(doc.data());
-    });
-    setuserWorkoutLog(workoutLogs);
-    // console.log(workoutLogs);
-  };
-
-  const getTrainerLogs = async () => {
-    const workoutLogs = [];
-    const query = collection(db, `workoutlogs/${appUser?.email}/trainerLog`);
-    const querySnapshot = await getDocs(query);
-    querySnapshot.forEach(async (doc) => {
-      await workoutLogs.push({ id: doc.id, ...doc.data() });
-      console.log(doc.data());
-    });
-    settrainerWorkoutLog(workoutLogs);
-    // console.log(workoutLogs);
-  };
-
-  const checkUser = async () => {
-    setTimeout(async () => {
-      getUser();
-    }, 3000);
-  };
-
-  const getUser = async () => {
-    if (isSignedIn) {
-      const docRef = doc(db, "users", user?.emailAddresses[0]?.emailAddress);
+  const getData = async (email) => {
+    try {
+      const docRef = doc(db, "users", email);
       const docSnap = await getDoc(docRef);
-      console.log("Doc snap", docSnap.data());
-
-      await getHomePromo();
-      await getSettings();
-      await getAllPosts();
-      await getAllWorkoutLogs();
-      await getTrainerLogs();
 
       if (docSnap.exists()) {
         const userData = docSnap.data();
         setappUser(userData);
 
-        if (userData != null) {
-          navigation.navigate("HomeStack");
-        }
+        await Promise.all([
+          getHomePromo(),
+          getSettings(),
+          getAllPosts(),
+          getUserWorkoutLogs(email),
+          getTrainerLogs(email),
+        ]);
+
+        navigation.navigate("HomeStack");
       } else {
+        Alert.alert("Error", "User data not found");
         navigation.navigate(screens.AuthScreen);
       }
-    } else {
-      navigation.navigate(screens.AuthScreen);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      Alert.alert("Error", "Failed to load user data");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    checkUser();
-  }, []);
+  const getHomePromo = async () => {
+    const promos = [];
+    const querySnapshot = await getDocs(collection(db, "home"));
+    querySnapshot.forEach((doc) => promos.push(doc.data()));
+    setpromoSections(promos);
+  };
 
-  return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: "#0086C9",
-        justifyContent: "center",
-      }}
-    >
-      <Image
-        style={{
-          alignSelf: "center",
-        }}
-        source={require("../../assets/images/splashLogo.png")}
-      />
-      <BallIndicator
-        color="white"
-        style={{ position: "absolute", bottom: 50, alignSelf: "center" }}
-      />
-    </View>
-  );
+  const getSettings = async () => {
+    const settings = [];
+    const querySnapshot = await getDocs(collection(db, "settings"));
+    querySnapshot.forEach((doc) => settings.push(doc.data()));
+    setsettingOptions(settings);
+  };
+
+  const getAllPosts = async () => {
+    const posts = [];
+    const querySnapshot = await getDocs(collection(db, "posts"));
+    querySnapshot.forEach((doc) => posts.push({ id: doc.id, ...doc.data() }));
+    setallPosts(posts);
+  };
+
+  const getUserWorkoutLogs = async (email) => {
+    const logs = [];
+    const querySnapshot = await getDocs(
+      collection(db, `workoutlogs/${email}/logs`)
+    );
+    querySnapshot.forEach((doc) => logs.push({ id: doc.id, ...doc.data() }));
+    setuserWorkoutLog(logs);
+  };
+
+  const getTrainerLogs = async (email) => {
+    const logs = [];
+    const querySnapshot = await getDocs(
+      collection(db, `workoutlogs/${email}/trainerLog`)
+    );
+    querySnapshot.forEach((doc) => logs.push({ id: doc.id, ...doc.data() }));
+    settrainerWorkoutLog(logs);
+  };
+
+  useEffect(() => {
+    const authInstance = getAuth();
+    const unsubscribe = onAuthStateChanged(authInstance, (user) => {
+      if (user) {
+        console.log("User is signed in:", user.email);
+        getData(user.email);
+      } else {
+        console.log("No user is signed in");
+        navigation.navigate(screens.AuthScreen);
+      }
+    });
+
+    return () => unsubscribe(); // Clean up the listener on unmount
+  }, [navigation]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <Image
+          style={styles.logo}
+          source={require("../../assets/images/splashLogo.png")}
+        />
+        <BallIndicator color="white" style={styles.indicator} />
+      </View>
+    );
+  }
+
+  return null;
 };
 
 export default SplashScreen;
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#0086C9",
+    justifyContent: "center",
+  },
+  logo: {
+    alignSelf: "center",
+  },
+  indicator: {
+    position: "absolute",
+    bottom: 50,
+    alignSelf: "center",
+  },
+});

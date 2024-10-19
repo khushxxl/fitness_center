@@ -5,7 +5,6 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../utils/firebase";
 import { screens } from "../utils/constants";
-import { useNavigation } from "@react-navigation/native";
 
 const ChatBox = ({ data, navigation, sender, reciever }) => {
   const { appUser, isTrainer } = useContext(AppContext);

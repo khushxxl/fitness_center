@@ -23,5 +23,4 @@ const Header = ({ title, navigation }) => {
 };
 
 export default Header;
-
 const styles = StyleSheet.create({});

@@ -10,7 +10,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 
 const CustomInput = ({
   autofocus = false,
-  label,
+  label = "",
   placeholder,
   value,
   onChangeText,
@@ -25,9 +25,11 @@ const CustomInput = ({
 
   return (
     <View style={[styles, { marginTop: mt }]}>
-      <Text style={{ marginLeft: 12, marginBottom: 10, fontSize: 15 }}>
-        {label}
-      </Text>
+      {label && (
+        <Text style={{ marginLeft: 12, marginBottom: 10, fontSize: 15 }}>
+          {label}
+        </Text>
+      )}
       <View
         style={{
           borderColor: "#D0D5DD",

@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Fit Center",
+    "name": "Fit Centre",
     "slug": "client",
-    "version": "1.0.4",
+    "version": "1.0.8",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -40,15 +40,7 @@
           "iCloudContainerEnvironment": "Production"
         }
       ],
-      [
-        "@stripe/stripe-react-native",
-        {
-          "merchantIdentifier": "",
-          "enableGooglePay": true
-        }
-      ],
-      "expo-secure-store",
-      "react-native-health"
+      "expo-secure-store"
     ],
     "runtimeVersion": {
       "policy": "appVersion"

@@ -8,13 +8,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import Modal from "react-native-modal";
 import CustomIcon from "./CustomIcon";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "react-native";
-import { addDoc, collection } from "firebase/firestore";
-import { db, storage } from "../utils/firebase";
+import { addDoc, collection, doc, getDoc } from "firebase/firestore";
+import { auth, db, storage } from "../utils/firebase";
 import { AppContext } from "../context/AppContext";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { getBlobFroUri, getRandomInt } from "../utils/constants";
@@ -29,21 +29,37 @@ const AddPostModal = ({
   const [postContent, setpostContent] = useState("");
   const [postMedia, setpostMedia] = useState("");
   const [image, setimage] = useState<any>();
+  const [user, setUser] = useState(null);
 
   const addPost = () => {
     setPostData([...postData, { postContent, postMedia }]);
     setModal(false);
   };
   const [loading, setloading] = useState(false);
-  const { appUser } = useContext(AppContext);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      if (auth.currentUser) {
+        const userDoc = await getDoc(doc(db, "users", auth.currentUser.email));
+        if (userDoc.exists()) {
+          setUser(userDoc.data());
+        }
+      }
+    };
+    fetchUser();
+  }, []);
 
   const uploadPost = async () => {
+    if (!user) {
+      Alert.alert("Error", "User not found");
+      return;
+    }
     setloading(true);
     let downloadURL;
     if (image) {
       const imageRef = ref(
         storage,
-        `post/${appUser?.name + " " + getRandomInt()}`
+        `post/${user?.name + " " + getRandomInt()}`
       );
       const imageBlob: any = await getBlobFroUri(image);
 
@@ -63,7 +79,7 @@ const AddPostModal = ({
         });
     }
     await addDoc(collection(db, `posts`), {
-      uploadedBy: appUser,
+      uploadedBy: user,
       comments: [],
       likedBy: [],
       content: postContent,

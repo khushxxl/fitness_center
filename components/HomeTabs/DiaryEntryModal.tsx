@@ -77,8 +77,6 @@ const DiaryEntryModal = ({
           repsPerformed: repsPerformed,
           dateSelect: dateSelected.toDateString(),
           calorieBurnt: 90,
-          startTime: startTime,
-          endTime: endTime,
         }
       ).then(async () => {
         await getAllWorkoutLogs();
@@ -93,8 +91,6 @@ const DiaryEntryModal = ({
         repsPerformed: repsPerformed,
         dateSelect: dateSelected.toDateString(),
         calorieBurnt: 90,
-        startTime: startTime,
-        endTime: endTime,
       })
         .then(async () => {
           await getAllWorkoutLogs();
@@ -246,26 +242,6 @@ const DiaryEntryModal = ({
               justifyContent: "space-evenly",
             }}
           >
-            <View>
-              <Text
-                style={{
-                  marginLeft: 12,
-                  fontSize: 15,
-                  marginTop: 10,
-                  marginBottom: 2,
-                }}
-              >
-                Start Time
-              </Text>
-              <TouchableOpacity
-                onPress={() => setShowStartTimeModal(true)}
-                style={[customAppStyles.custInputViewStyle, {}]}
-              >
-                <Text style={{ color: "gray" }}>
-                  {startTime ? startTime.toString() : "Select Time"}
-                </Text>
-              </TouchableOpacity>
-            </View>
             <DateTimePickerModal
               isVisible={showEndTimeModal}
               mode="time"
@@ -282,26 +258,6 @@ const DiaryEntryModal = ({
                 setshowEndTimeModal(false);
               }}
             />
-            <View>
-              <Text
-                style={{
-                  marginLeft: 12,
-                  fontSize: 15,
-                  marginTop: 10,
-                  marginBottom: 2,
-                }}
-              >
-                End Time
-              </Text>
-              <TouchableOpacity
-                onPress={() => setshowEndTimeModal(true)}
-                style={[customAppStyles.custInputViewStyle, {}]}
-              >
-                <Text style={{ color: "gray" }}>
-                  {endTime ? endTime.toString() : "Select Time"}
-                </Text>
-              </TouchableOpacity>
-            </View>
           </View>
 
           <View style={{}}>

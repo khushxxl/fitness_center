@@ -1,8 +1,9 @@
 import { StyleSheet, Text, View } from "react-native";
 import React, { createContext, useState, useEffect } from "react";
 import { doc, getDoc } from "firebase/firestore";
-import { db } from "../utils/firebase";
+import { auth, db } from "../utils/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { onAuthStateChanged } from "firebase/auth";
 
 export const AppContext = createContext();
 
@@ -14,6 +15,8 @@ const AppProvider = ({ children }) => {
   const [trainerData, settrainerData] = useState();
   const [userWorkoutLog, setuserWorkoutLog] = useState([]);
   const [trainerWorkoutLog, settrainerWorkoutLog] = useState([]);
+  const [user, setUser] = useState();
+  const [userData, setuserData] = useState();
   const saveCookie = async () => {
     try {
       const jsonValue = JSON.stringify(appUser);
@@ -63,7 +66,26 @@ const AppProvider = ({ children }) => {
       setisTrainer(true);
     }
   };
-  useEffect(() => {}, []);
+  const getUserData = async (email) => {
+    if (email) {
+      const userDocRef = doc(db, "users", email);
+      const userDocSnap = await getDoc(userDocRef);
+      if (userDocSnap.exists()) {
+        console.log("User", userDocSnap.data());
+        setuserData(userDocSnap.data());
+      }
+    }
+  };
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setUser(user); // Set the user state if logged in
+      await getUserData(user?.email);
+      setLoading(false); // Stop loading once we know the auth state
+    });
+
+    // Clean up the listener on unmount
+    return () => unsubscribe();
+  }, []);
 
   return (
     <AppContext.Provider
@@ -84,6 +106,8 @@ const AppProvider = ({ children }) => {
         setuserWorkoutLog,
         trainerWorkoutLog,
         settrainerWorkoutLog,
+        userData,
+        user,
       }}
     >
       {children}

@@ -98,23 +98,6 @@ const DiaryLog = ({ navigation }) => {
           marginTop: 15,
         }}
       >
-        <View
-          style={{
-            justifyContent: "space-between",
-            height: "95%",
-            alignItems: "center",
-          }}
-        >
-          <Text style={{ fontWeight: "bold", fontSize: 15 }}>
-            {data?.startTime}
-          </Text>
-          {data?.startTime && data?.endTime && (
-            <View style={styles.verticalLine} />
-          )}
-          <Text style={{ fontWeight: "bold", fontSize: 15 }}>
-            {data?.endTime}
-          </Text>
-        </View>
         <TouchableOpacity
           onPress={() => {
             setclickedData(data);

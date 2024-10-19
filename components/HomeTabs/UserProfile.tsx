@@ -11,7 +11,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { AppContext } from "../../context/AppContext";
 import * as ImagePicker from "expo-image-picker";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, deleteDoc, getDoc } from "firebase/firestore";
 import { db, storage } from "../../utils/firebase";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { getBlobFroUri, screens } from "../../utils/constants";
@@ -19,21 +19,30 @@ import { useStripe } from "@stripe/stripe-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import EditProfileSheet from "../CustomComponents/EditProfileSheet";
 import CustomIcon from "../CustomIcon";
-import { useAuth, useUser } from "@clerk/clerk-expo";
-import {  deleteDoc } from "firebase/firestore";
+import { getAuth, signOut } from "firebase/auth";
+import { ActivityIndicator } from "react-native";
 
 const UserProfile = ({ navigation, showUserProfile, setShowUserProfile }) => {
   const { appUser, getUser, setappUser } = useContext(AppContext);
-  const { signOut, isSignedIn } = useAuth();
-  const signOutUser = async () => {
-    signOut();
-  };
+  const auth = getAuth();
+  const [userData, setUserData] = useState(null);
+
   useEffect(() => {
-    if (!isSignedIn) {
-      navigation.navigate(screens.AuthScreen);
-    }
-  }, [isSignedIn]);
-  const [image, setImage] = useState(appUser?.photo);
+    const fetchUserData = async () => {
+      if (auth.currentUser) {
+        const userDocRef = doc(db, "users", auth.currentUser.email);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          setUserData(userDocSnap.data());
+        }
+      }
+    };
+    fetchUserData();
+  }, [auth.currentUser]);
+
+  const signOutUser = async () => {
+    await signOut(auth);
+  };
 
   const OptionsBox = ({ onClick, title, iconName }) => {
     return (
@@ -108,13 +117,11 @@ const UserProfile = ({ navigation, showUserProfile, setShowUserProfile }) => {
       </TouchableOpacity>
     );
   };
-  const { user } = useUser();
   const [showEditProfileSheet, setshowEditProfileSheet] = useState(false);
 
   console.log("APpuser", appUser);
 
-  const deleteAccount =async()=>{
-
+  const deleteAccount = async () => {
     Alert.alert(
       "This action is non-reversible",
       "This action will delete your account",
@@ -122,29 +129,57 @@ const UserProfile = ({ navigation, showUserProfile, setShowUserProfile }) => {
         {
           text: "Cancel",
           onPress: () => console.log("Cancel Pressed"),
-          style: "cancel"
+          style: "cancel",
         },
         {
           text: "OK",
-          onPress: async() =>{
-             await deleteDoc(doc(db, "users", user?.emailAddresses[0].emailAddress)).then(async()=>{
-              await signOut()
-             })
-          }
-        }
+          onPress: async () => {
+            await deleteDoc(doc(db, "users", auth.currentUser?.email)).then(
+              async () => {
+                await auth.currentUser?.delete();
+                await signOutUser();
+              }
+            );
+          },
+        },
       ],
       { cancelable: true }
     );
+  };
 
+  const uploadImage = async () => {
+    try {
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+      });
 
-   
+      if (!result.canceled) {
+        const response = await fetch(result.assets[0].uri);
+        const blob = await response.blob();
+        const filename = auth.currentUser?.uid + Date.now() + ".jpg";
+        const storageRef = ref(storage, `profilePictures/${filename}`);
 
+        await uploadBytes(storageRef, blob);
+        const downloadURL = await getDownloadURL(storageRef);
 
-  }
+        await updateDoc(doc(db, "users", auth.currentUser?.email), {
+          photoURL: downloadURL,
+        });
+
+        Alert.alert("Success", "Profile picture updated successfully!");
+      }
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      Alert.alert("Error", "Failed to upload image. Please try again.");
+    }
+  };
+  const [imageLoading, setimageLoading] = useState(false);
   return (
     <SafeAreaView
       style={{
-        // backgroundColor: "#EAECF0",
         height: "100%",
         backgroundColor: "white",
       }}
@@ -160,28 +195,40 @@ const UserProfile = ({ navigation, showUserProfile, setShowUserProfile }) => {
           styles={false}
         />
       </View>
-      {/* <View style={{ marginTop: 10 }}>
-        <Text style={{ textAlign: "center", fontWeight: "bold", fontSize: 20 }}>
-          Profile
-        </Text>
-      </View> */}
 
       <View
         style={{ alignSelf: "center", marginTop: 30, alignItems: "center" }}
       >
         <TouchableOpacity>
-          {user?.hasImage ? (
+          {userData?.photo ? (
             <Image
               style={{
                 height: 100,
                 width: 100,
                 borderRadius: 35,
               }}
-              source={{ uri: user?.imageUrl }}
+              source={{ uri: userData.photo }}
+              onLoadStart={() => setimageLoading(true)}
+              onLoadEnd={() => setimageLoading(false)}
             />
           ) : (
             <View>
               <Ionicons name="person-outline" size={35} />
+            </View>
+          )}
+          {imageLoading && (
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <ActivityIndicator size="large" color="#0000ff" />
             </View>
           )}
         </TouchableOpacity>
@@ -193,21 +240,9 @@ const UserProfile = ({ navigation, showUserProfile, setShowUserProfile }) => {
             fontWeight: "bold",
           }}
         >
-          {user?.username}
+          {userData?.displayName}
         </Text>
       </View>
-
-      {/* <View
-        style={{
-          marginTop: 20,
-          flexDirection: "row",
-          justifyContent: "space-evenly",
-        }}
-      >
-        <DataBox />
-        <DataBox />
-        <DataBox />
-      </View> */}
 
       <View style={{ marginTop: 20, justifyContent: "center" }}>
         <OptionsBox
@@ -217,13 +252,6 @@ const UserProfile = ({ navigation, showUserProfile, setShowUserProfile }) => {
           }}
           iconName={"person-outline"}
         />
-        {/* <OptionsBox
-          iconName={"card-outline"}
-          title={"Subscribe"}
-          onClick={() => {
-            navigation.navigate(screens.Payment);
-          }}
-        /> */}
         <OptionsBox
           iconName={"lock-closed-outline"}
           title={"Sign out"}
@@ -234,8 +262,8 @@ const UserProfile = ({ navigation, showUserProfile, setShowUserProfile }) => {
           title={"Track Progress"}
           onClick={() => navigation.navigate(screens.TrackProgress)}
         />
-         <OptionsBox
-          iconName={'trash'}
+        <OptionsBox
+          iconName={"trash"}
           title={"Delete Account"}
           onClick={deleteAccount}
         />

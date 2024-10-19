@@ -15,18 +15,37 @@ import CustomIcon from "../../components/CustomIcon";
 import CustomButton from "../../components/CustomButton";
 import WeightInputModal from "../../components/WeightInputModal";
 import { images } from "../../utils/constants";
+import { getAuth } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../../utils/firebase";
 
 const TrackProgress = ({ navigation }) => {
   const { appUser, getUser } = useContext(AppContext);
+  const auth = getAuth();
 
   const [weightInput, setWeightInput] = useState(null);
-  const [userWeights, setUserWeights] = useState(
-    appUser?.userHealthData?.weightRecords || []
-  );
+  const [userWeights, setUserWeights] = useState([]);
   const [selectedData, setSelectedData] = useState(null);
   const [weightModal, setWeightModal] = useState(false);
   const screenWidth = Dimensions.get("window").width;
   const [view, setView] = useState("week");
+  const [user, setuser] = useState<any>();
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (auth.currentUser) {
+        const userDocRef = doc(db, "users", auth.currentUser.email);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          const userData: any = userDocSnap.data();
+          setuser(userData);
+          setUserWeights(userData.userHealthData?.weightRecords || []);
+          // setSelectedData(userData?.weightRecords[0]);
+        }
+      }
+    };
+    fetchUserData();
+  }, [auth.currentUser]);
 
   // Filter data based on the selected view
   const filterData = (data, view) => {
@@ -63,11 +82,6 @@ const TrackProgress = ({ navigation }) => {
   const dataPoints = graphData.map((d) => d.weight);
   const labels = graphData.map((d, index) => index + 1); // Example labels for x-axis
 
-  useEffect(() => {
-    // Optional: fetch user data if not already loaded
-    getUser();
-  }, []);
-
   return (
     <SafeAreaView style={styles.container}>
       <WeightInputModal
@@ -79,7 +93,6 @@ const TrackProgress = ({ navigation }) => {
         setuserWeights={setUserWeights}
       />
       <View style={styles.header}>
-        {/* <Image source={images.fcTextLogo} style={styles.logo} /> */}
         <CustomIcon
           styles={styles.backIcon}
           name="chevron-back-outline"
@@ -93,8 +106,8 @@ const TrackProgress = ({ navigation }) => {
           {selectedData
             ? `${selectedData.weight} kg`
             : userWeights.length > 0
-            ? `${userWeights[userWeights.length - 1]?.weight} kg`
-            : appUser?.weight}
+              ? `${userWeights[userWeights.length - 1]?.weight} kg`
+              : user?.weight}
         </Text>
       </TouchableOpacity>
 

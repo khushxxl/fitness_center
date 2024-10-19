@@ -7,17 +7,33 @@ import {
   View,
 } from "react-native";
 import React, { useContext, useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+} from "firebase/firestore";
 import { AppContext } from "../context/AppContext";
+import {
+  breakfast_recipes,
+  dinner_recipes,
+  lunch_recipes,
+  screens,
+} from "../utils/constants";
+import { useNavigation } from "@react-navigation/native";
 
 const MyMeals = () => {
-  const { appUser } = useContext(AppContext);
-  const [proteinContent, setproteinContent] = useState<any>(
-    appUser?.macros?.protein
-  );
-  const [carbsContent, setcarbsContent] = useState<any>(appUser?.macros?.carbs);
-  const [fatsContent, setfatsContent] = useState<any>(appUser?.macros?.fats);
+  const { userData } = useContext(AppContext);
 
+  const [proteinContent, setproteinContent] = useState<any>(
+    userData?.macros?.protein
+  );
+  const [carbsContent, setcarbsContent] = useState<any>(
+    userData?.macros?.carbs
+  );
+  const [fatsContent, setfatsContent] = useState<any>(userData?.macros?.fats);
+  const navigation = useNavigation();
   const MacrosBox = ({ text, data }) => {
     return (
       <View style={{ alignItems: "center" }}>
@@ -27,9 +43,12 @@ const MyMeals = () => {
     );
   };
 
-  const FoodBox = ({ mealType }) => {
+  const FoodBox = ({ mealType, data }) => {
     return (
       <TouchableOpacity
+        onPress={() =>
+          navigation.navigate(screens.DetailRecipe, { data: data })
+        }
         style={{
           marginTop: 30,
           marginHorizontal: 20,
@@ -104,9 +123,9 @@ const MyMeals = () => {
             <MacrosBox text={"Fats"} data={fatsContent} />
           </View>
         </View>
-        <FoodBox mealType={"Breakfast"} />
-        <FoodBox mealType={"Lunch"} />
-        <FoodBox mealType={"Dinner"} />
+        <FoodBox mealType={"Breakfast"} data={breakfast_recipes} />
+        <FoodBox mealType={"Lunch"} data={lunch_recipes} />
+        <FoodBox mealType={"Dinner"} data={dinner_recipes} />
         <View style={{ height: 20 }} />
       </View>
     </ScrollView>

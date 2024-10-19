@@ -26,6 +26,7 @@ export const screens = {
   VideoView: "VideoView",
   TrackProgress: "TrackProgess",
   PostScreen: "PostScreen",
+  DetailRecipe: "DetailRecipe",
 };
 
 export const Trainer_Email = "Info@fit-centre.co.uk";
@@ -460,6 +461,167 @@ export const sample_recipes = [
       "6. Drizzle olive oil over the pizza and season with salt.",
       "7. Bake in the oven for 15-20 minutes, until the crust is golden and cheese is bubbly.",
       "8. Garnish with fresh basil leaves before serving.",
+    ],
+  },
+];
+
+export const breakfast_recipes = [
+  {
+    name: "Avocado Toast",
+    image: "https://via.placeholder.com/150",
+    ingredients: [
+      { name: "Whole grain bread", grams: 60 },
+      { name: "Avocado", grams: 100 },
+      { name: "Eggs", grams: 100 },
+      { name: "Cherry tomatoes", grams: 50 },
+      { name: "Salt and pepper", grams: 5 },
+    ],
+    macros: {
+      carbs: "30g",
+      proteins: "15g",
+      fats: "20g",
+    },
+    description:
+      "Creamy avocado spread on toasted whole grain bread, topped with poached eggs and cherry tomatoes.",
+    cookingMethod: [
+      "1. Toast the bread slices.",
+      "2. Mash the avocado and spread it on the toast.",
+      "3. Poach the eggs and place them on top of the avocado.",
+      "4. Slice cherry tomatoes and arrange them around the eggs.",
+      "5. Season with salt and pepper to taste.",
+    ],
+  },
+  {
+    name: "Greek Yogurt Parfait",
+    image: "https://via.placeholder.com/150",
+    ingredients: [
+      { name: "Greek yogurt", grams: 200 },
+      { name: "Mixed berries", grams: 100 },
+      { name: "Granola", grams: 50 },
+      { name: "Honey", grams: 15 },
+    ],
+    macros: {
+      carbs: "40g",
+      proteins: "20g",
+      fats: "10g",
+    },
+    description:
+      "Layers of creamy Greek yogurt, fresh mixed berries, and crunchy granola, drizzled with honey.",
+    cookingMethod: [
+      "1. In a glass, layer Greek yogurt, mixed berries, and granola.",
+      "2. Repeat layers until the glass is full.",
+      "3. Drizzle honey over the top layer.",
+      "4. Serve immediately to keep the granola crunchy.",
+    ],
+  },
+];
+
+export const lunch_recipes = [
+  {
+    name: "Quinoa Salad Bowl",
+    image: "https://via.placeholder.com/150",
+    ingredients: [
+      { name: "Quinoa", grams: 150 },
+      { name: "Mixed vegetables", grams: 200 },
+      { name: "Feta cheese", grams: 50 },
+      { name: "Olive oil", grams: 15 },
+      { name: "Lemon juice", grams: 10 },
+    ],
+    macros: {
+      carbs: "45g",
+      proteins: "15g",
+      fats: "15g",
+    },
+    description:
+      "A nutritious bowl of quinoa mixed with roasted vegetables and crumbled feta cheese, dressed with olive oil and lemon juice.",
+    cookingMethod: [
+      "1. Cook quinoa according to package instructions.",
+      "2. Roast mixed vegetables in the oven.",
+      "3. Mix cooked quinoa with roasted vegetables.",
+      "4. Crumble feta cheese over the top.",
+      "5. Drizzle with olive oil and lemon juice.",
+    ],
+  },
+  {
+    name: "Turkey and Avocado Wrap",
+    image: "https://via.placeholder.com/150",
+    ingredients: [
+      { name: "Whole wheat wrap", grams: 60 },
+      { name: "Turkey slices", grams: 100 },
+      { name: "Avocado", grams: 50 },
+      { name: "Lettuce", grams: 30 },
+      { name: "Tomato", grams: 50 },
+      { name: "Mustard", grams: 10 },
+    ],
+    macros: {
+      carbs: "35g",
+      proteins: "25g",
+      fats: "15g",
+    },
+    description:
+      "A hearty wrap filled with lean turkey, creamy avocado, fresh vegetables, and a touch of mustard.",
+    cookingMethod: [
+      "1. Lay out the whole wheat wrap.",
+      "2. Spread mustard on the wrap.",
+      "3. Layer turkey slices, sliced avocado, lettuce, and tomato.",
+      "4. Roll the wrap tightly, tucking in the sides.",
+      "5. Cut in half diagonally and serve.",
+    ],
+  },
+];
+
+export const dinner_recipes = [
+  {
+    name: "Baked Salmon with Roasted Vegetables",
+    image: "https://via.placeholder.com/150",
+    ingredients: [
+      { name: "Salmon fillet", grams: 200 },
+      { name: "Mixed vegetables", grams: 250 },
+      { name: "Olive oil", grams: 20 },
+      { name: "Lemon", grams: 30 },
+      { name: "Herbs and spices", grams: 5 },
+    ],
+    macros: {
+      carbs: "20g",
+      proteins: "35g",
+      fats: "25g",
+    },
+    description:
+      "Tender baked salmon served with a colorful medley of roasted vegetables, seasoned with herbs and a squeeze of lemon.",
+    cookingMethod: [
+      "1. Preheat oven to 200°C (400°F).",
+      "2. Season salmon with herbs and spices.",
+      "3. Chop vegetables and toss with olive oil and seasonings.",
+      "4. Place salmon and vegetables on a baking sheet.",
+      "5. Bake for 15-20 minutes until salmon is cooked through and vegetables are tender.",
+      "6. Squeeze lemon over the dish before serving.",
+    ],
+  },
+  {
+    name: "Vegetarian Stir-Fry with Tofu",
+    image: "https://via.placeholder.com/150",
+    ingredients: [
+      { name: "Firm tofu", grams: 200 },
+      { name: "Mixed vegetables", grams: 300 },
+      { name: "Soy sauce", grams: 30 },
+      { name: "Sesame oil", grams: 10 },
+      { name: "Garlic", grams: 10 },
+      { name: "Ginger", grams: 5 },
+    ],
+    macros: {
+      carbs: "25g",
+      proteins: "20g",
+      fats: "15g",
+    },
+    description:
+      "A flavorful vegetarian stir-fry featuring crispy tofu and a variety of colorful vegetables in a savory sauce.",
+    cookingMethod: [
+      "1. Press and cube tofu, then pan-fry until crispy.",
+      "2. In a wok, stir-fry minced garlic and ginger in sesame oil.",
+      "3. Add chopped vegetables and cook until tender-crisp.",
+      "4. Add tofu and soy sauce, stir to combine.",
+      "5. Cook for an additional 2-3 minutes to meld flavors.",
+      "6. Serve hot, optionally over rice or noodles.",
     ],
   },
 ];

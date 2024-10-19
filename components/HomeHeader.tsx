@@ -1,21 +1,31 @@
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import React, { useContext } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { images, screens } from "../utils/constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppContext } from "../context/AppContext";
-import { useUser } from "@clerk/clerk-expo";
+import { getAuth } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../utils/firebase";
 
 const HomeHeader = ({ navigation, onImagePress }) => {
   const { appUser } = useContext(AppContext);
+  const [userData, setUserData] = useState(null);
+  const auth = getAuth();
 
-  const { user } = useUser();
-  const signOut = async () => {
-    await AsyncStorage.removeItem("user");
-    await AsyncStorage.removeItem("user").then(() => {
-      navigation.navigate(screens.Signin);
-    });
-  };
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (auth.currentUser) {
+        const userDocRef = doc(db, "users", auth.currentUser.email);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          setUserData(userDocSnap.data());
+        }
+      }
+    };
+    fetchUserData();
+  }, [auth.currentUser]);
+
   return (
     <View
       style={{
@@ -25,20 +35,18 @@ const HomeHeader = ({ navigation, onImagePress }) => {
         alignItems: "center",
       }}
     >
-      {appUser && appUser?.photo ? (
+      {userData && userData?.photo ? (
         <TouchableOpacity onPress={onImagePress}>
-          {user && user?.hasImage && (
-            <Image
-              source={{ uri: user?.imageUrl }}
-              style={{
-                height: 50,
-                width: 50,
-                borderRadius: 25,
-                borderWidth: 2,
-                borderColor: "lightgray",
-              }}
-            />
-          )}
+          <Image
+            source={{ uri: userData.photo }}
+            style={{
+              height: 50,
+              width: 50,
+              borderRadius: 25,
+              borderWidth: 2,
+              borderColor: "lightgray",
+            }}
+          />
         </TouchableOpacity>
       ) : (
         <TouchableOpacity onPress={onImagePress}>

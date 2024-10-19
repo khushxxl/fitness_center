@@ -35,6 +35,7 @@ const Post = ({ navigation }) => {
       console.log(doc.id, " => ", doc.data());
     });
     setallPosts(allPostsInline);
+    console.log(allPosts);
     setpostLoading(false);
   };
 
@@ -46,7 +47,7 @@ const Post = ({ navigation }) => {
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
     setTimeout(async () => {
-      // await getAllPosts();
+      await getAllPosts();
       setRefreshing(false);
     }, 2000);
   }, []);

@@ -10,12 +10,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import ChatBox from "../../components/ChatBox";
 import CustomInput from "../../components/CustomInput";
-import { AppContext } from "../../context/AppContext";
 import {
   addDoc,
   and,
@@ -30,15 +29,17 @@ import {
   setDoc,
   where,
 } from "firebase/firestore";
-import { db, storage } from "../../utils/firebase";
+import { db, storage, auth } from "../../utils/firebase";
 import { getBlobFroUri, getChatTimeFormat } from "../../utils/constants";
 import * as DocumentPicker from "expo-document-picker";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
 const ChatScreen = ({ route, navigation }) => {
   const [userTrainer, setuserTrainer] = useState<any>();
-  const { appUser, isTrainer } = useContext(AppContext);
+  const [currentUser, setCurrentUser] = useState(null);
   const { sender, reciever } = route?.params;
+
+  console.log("receiver ->", reciever);
   const [message, setmessage] = useState("");
   const [allMessages, setallMessages] = useState<any>([]);
   const [mediaSelected, setmediaSelected] = useState(null);
@@ -46,14 +47,25 @@ const ChatScreen = ({ route, navigation }) => {
   const scrollViewRef = useRef(null);
 
   useEffect(() => {
-    if (appUser?.isTrainer == false) {
-      console.log("User Account");
-      getUserTrainer();
-    }
+    const unsubscribe = auth.onAuthStateChanged((user: any) => {
+      if (user) {
+        setCurrentUser(user);
+        if (!user.isTrainer) {
+          console.log("User Account");
+          getUserTrainer();
+        }
+      }
+    });
+
     getAllInChatMessages();
-    setInterval(() => {
+    const interval = setInterval(() => {
       getAllInChatMessages();
     }, 5000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
@@ -64,37 +76,24 @@ const ChatScreen = ({ route, navigation }) => {
 
   const getAllInChatMessages = async () => {
     const messages = [];
-    if (appUser?.isTrainer) {
-      const ref = collection(
-        db,
-        `chats/${reciever?.email + sender?.email}/chat`
-      );
-      const queryData = query(ref, orderBy("timestamp", "asc"));
-      const querySnapshot = await getDocs(queryData);
-      querySnapshot.forEach(async (doc) => {
-        console.log("doc");
-        console.log("Doc", doc.data());
-        await messages.push(doc.data());
-      });
-    } else {
-      const ref = collection(
-        db,
-        `chats/${sender?.email + reciever?.email}/chat`
-      );
-      const queryData = query(ref, orderBy("timestamp", "asc"));
-      const querySnapshot = await getDocs(queryData);
-      querySnapshot.forEach(async (doc) => {
-        console.log("doc");
-        console.log("Doc", doc.data());
-        await messages.push(doc.data());
-      });
-    }
+
+    console.log(sender?.trainer);
+
+    const ref = collection(db, `chats/${sender?.email + sender?.trainer}/chat`);
+    const queryData = query(ref, orderBy("timestamp", "asc"));
+    const querySnapshot = await getDocs(queryData);
+    querySnapshot.forEach(async (doc) => {
+      console.log("doc");
+      console.log("Doc", doc.data());
+      await messages.push(doc.data());
+    });
+
     setallMessages(messages);
-    console.log("Messages", messages);
+    // console.log("Messages", messages);r
   };
 
   const getUserTrainer = async () => {
-    const docRef = doc(db, "users", appUser.trainer);
+    const docRef = doc(db, "users", currentUser.trainer);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
@@ -118,7 +117,7 @@ const ChatScreen = ({ route, navigation }) => {
     if (mediaSelected) {
       imageRef = ref(
         storage,
-        `users/${appUser?.name}/media/${mediaSelected?.name}`
+        `users/${currentUser?.displayName}/media/${mediaSelected?.name}`
       );
     }
 
@@ -139,9 +138,9 @@ const ChatScreen = ({ route, navigation }) => {
           collection(
             db,
             `chats/${
-              appUser?.isTrainer
-                ? reciever?.email + sender?.email
-                : sender?.email + reciever?.email
+              currentUser?.isTrainer
+                ? sender?.trainer + sender?.email
+                : sender?.email + sender?.trainer
             }/chat`
           ),
           {
@@ -163,17 +162,10 @@ const ChatScreen = ({ route, navigation }) => {
         console.error("Error adding document: ", e);
       }
     }
-    // console.log(message);
-    // allMessages.push({ sender: appUser.name, text: message });
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
-      {/* <View>
-        <Text style={{ textAlign: "center", fontWeight: "bold", fontSize: 18 }}>
-        
-        </Text>
-      </View> */}
       <View
         style={{
           margin: 10,
@@ -200,7 +192,7 @@ const ChatScreen = ({ route, navigation }) => {
         >
           <Text style={{ fontWeight: "bold" }}>{reciever?.name}</Text>
           <Text style={{ fontWeight: "bold" }}>
-            {!appUser?.isTrainer ? " - Senior Trainer" : " - User"}
+            {!currentUser?.isTrainer ? " - Senior Trainer" : " - User"}
           </Text>
         </View>
       </View>
@@ -301,7 +293,6 @@ const ChatScreen = ({ route, navigation }) => {
                 </View>
               );
             })}
-          {/* <View style={{ height: 200 }} /> */}
         </ScrollView>
       </View>
       <KeyboardAvoidingView
