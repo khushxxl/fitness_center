@@ -1,4 +1,4 @@
-import React, { useState, useContext, useCallback } from "react";
+import React, { useState, useContext, useCallback, useEffect } from "react";
 import {
   SafeAreaView,
   View,
@@ -11,52 +11,65 @@ import {
 import { AppContext } from "../../context/AppContext";
 import CustomInput from "../../components/CustomInput";
 import CustomButton from "../../components/CustomButton";
-
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { auth } from "../../utils/firebase";
+import { auth, db } from "../../utils/firebase";
 import {
   browserSessionPersistence,
   getAuth,
+  onAuthStateChanged,
   setPersistence,
   signInWithEmailAndPassword,
 } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
 const Signin = ({ navigation }) => {
-  const { setuserData } = useContext(AppContext);
+  const { setuserData } = useContext(AppContext); // Ensure setuserData is correctly set up in the context
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  const getUserData = async (userId) => {
+    try {
+      const userDocRef = doc(db, "users", userId);
+      const userDocSnap = await getDoc(userDocRef);
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        setuserData(userData); // Set the user data into context
+        await AsyncStorage.setItem("userData", JSON.stringify(userData));
+        navigation.navigate("HomeStack");
+      } else {
+        console.log("No such document!");
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        await getUserData(user.uid); // Use the user's UID instead of email for querying Firestore
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const handleSignIn = useCallback(async () => {
     try {
       const auth = getAuth();
-      // await setPersistence(auth, browserSessionPersistence);
 
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
         password
       );
-
       const user = userCredential.user;
-      if (user) {
-        await storeUserLocally(user);
-        // setuserData(user);
-        navigation.navigate("HomeStack");
-      }
+      await getUserData(user?.email); // Fetch data using user UID after sign-in
     } catch (error) {
       console.error("Sign-in error:", error);
-      Alert.alert("Login Failed", error.message);
+      Alert.alert("Login Failed", "Invalid Credentials");
     }
   }, [email, password]);
-
-  const storeUserLocally = async (user) => {
-    try {
-      const jsonValue = JSON.stringify(user);
-      await AsyncStorage.setItem("user", jsonValue);
-    } catch (e) {
-      console.error("Storage error:", e);
-    }
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -88,10 +101,6 @@ const Signin = ({ navigation }) => {
           onClick={handleSignIn}
           textColor="white"
         />
-
-        <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
-          <Text style={styles.linkText}>Forgot Password?</Text>
-        </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.navigate("Signup")}>
           <Text style={styles.signupText}>

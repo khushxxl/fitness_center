@@ -23,25 +23,30 @@ import { getAuth, signOut } from "firebase/auth";
 import { ActivityIndicator } from "react-native";
 
 const UserProfile = ({ navigation, showUserProfile, setShowUserProfile }) => {
-  const { appUser, getUser, setappUser } = useContext(AppContext);
+  const { getUser, setappUser, userData, setuserData } = useContext(AppContext);
   const auth = getAuth();
-  const [userData, setUserData] = useState(null);
 
-  useEffect(() => {
-    const fetchUserData = async () => {
+  const fetchUserData = async () => {
+    try {
       if (auth.currentUser) {
-        const userDocRef = doc(db, "users", auth.currentUser.email);
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists()) {
-          setUserData(userDocSnap.data());
+        const userDoc = await getDoc(doc(db, "users", auth.currentUser.email));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setuserData(data);
         }
       }
-    };
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  };
+
+  useEffect(() => {
     fetchUserData();
-  }, [auth.currentUser]);
+  }, []);
 
   const signOutUser = async () => {
     await signOut(auth);
+    navigation.navigate(screens.AuthScreen);
   };
 
   const OptionsBox = ({ onClick, title, iconName }) => {
@@ -119,8 +124,6 @@ const UserProfile = ({ navigation, showUserProfile, setShowUserProfile }) => {
   };
   const [showEditProfileSheet, setshowEditProfileSheet] = useState(false);
 
-  console.log("APpuser", appUser);
-
   const deleteAccount = async () => {
     Alert.alert(
       "This action is non-reversible",
@@ -147,36 +150,6 @@ const UserProfile = ({ navigation, showUserProfile, setShowUserProfile }) => {
     );
   };
 
-  const uploadImage = async () => {
-    try {
-      let result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 1,
-      });
-
-      if (!result.canceled) {
-        const response = await fetch(result.assets[0].uri);
-        const blob = await response.blob();
-        const filename = auth.currentUser?.uid + Date.now() + ".jpg";
-        const storageRef = ref(storage, `profilePictures/${filename}`);
-
-        await uploadBytes(storageRef, blob);
-        const downloadURL = await getDownloadURL(storageRef);
-
-        await updateDoc(doc(db, "users", auth.currentUser?.email), {
-          photoURL: downloadURL,
-        });
-
-        Alert.alert("Success", "Profile picture updated successfully!");
-      }
-    } catch (error) {
-      console.error("Error uploading image:", error);
-      Alert.alert("Error", "Failed to upload image. Please try again.");
-    }
-  };
-  const [imageLoading, setimageLoading] = useState(false);
   return (
     <SafeAreaView
       style={{
@@ -185,8 +158,8 @@ const UserProfile = ({ navigation, showUserProfile, setShowUserProfile }) => {
       }}
     >
       <EditProfileSheet
-        setModal={setshowEditProfileSheet}
-        modal={showEditProfileSheet}
+        isVisible={showEditProfileSheet}
+        onClose={() => setshowEditProfileSheet(false)}
       />
       <View style={{ marginLeft: 10 }}>
         <CustomIcon
@@ -205,30 +178,22 @@ const UserProfile = ({ navigation, showUserProfile, setShowUserProfile }) => {
               style={{
                 height: 100,
                 width: 100,
-                borderRadius: 35,
+                borderRadius: 50,
               }}
               source={{ uri: userData.photo }}
-              onLoadStart={() => setimageLoading(true)}
-              onLoadEnd={() => setimageLoading(false)}
             />
           ) : (
-            <View>
-              <Ionicons name="person-outline" size={35} />
-            </View>
-          )}
-          {imageLoading && (
             <View
               style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                justifyContent: "center",
+                height: 100,
+                width: 100,
+                borderRadius: 50,
+                backgroundColor: "#f0f0f0",
                 alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              <ActivityIndicator size="large" color="#0000ff" />
+              <Ionicons name="person-outline" size={50} color="#666" />
             </View>
           )}
         </TouchableOpacity>
@@ -267,6 +232,39 @@ const UserProfile = ({ navigation, showUserProfile, setShowUserProfile }) => {
           title={"Delete Account"}
           onClick={deleteAccount}
         />
+
+        {(userData?.gender ||
+          !userData?.age ||
+          !userData?.userHealthData?.height ||
+          !userData?.userHealthData?.weight ||
+          !userData?.trainingGoal ||
+          !userData?.sleepHours ||
+          !userData?.trainingHours ||
+          !userData?.allergies) && (
+          <TouchableOpacity
+            style={{
+              padding: 15,
+              width: "90%",
+              borderRadius: 8,
+              borderWidth: 0.5,
+              borderColor: "gray",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.2,
+              shadowRadius: 2,
+              elevation: 5,
+              marginTop: 40,
+              alignSelf: "center",
+              justifyContent: "space-between",
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+            onPress={() => navigation.navigate(screens.Question)}
+          >
+            <Text style={{ fontWeight: "500" }}>Complete your Profile</Text>
+            <Ionicons name="chevron-forward-outline" size={25} />
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );

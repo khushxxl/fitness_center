@@ -20,8 +20,8 @@ const MealsScreen = ({ navigation }) => {
     <SafeAreaView style={{ height: "100%", backgroundColor: "white", flex: 1 }}>
       <View style={{ marginTop: 10 }}>
         <Image
-          source={images.fcTextLogo}
-          style={{ height: 13, width: 140, alignSelf: "center" }}
+          source={images.fc_header_img}
+          style={{ height: 20, width: 170, alignSelf: "center" }}
         />
       </View>
       <View

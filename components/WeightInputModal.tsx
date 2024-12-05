@@ -5,7 +5,6 @@ import {
   ScrollView,
   StyleSheet,
   View,
-  Alert,
 } from "react-native";
 import React, { useContext, useState } from "react";
 import Modal from "react-native-modal";
@@ -15,8 +14,7 @@ import * as ImagePicker from "expo-image-picker";
 import { arrayUnion, doc, updateDoc } from "firebase/firestore";
 import { AppContext } from "../context/AppContext";
 import { db, storage } from "../utils/firebase";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { getBlobFroUri } from "../utils/constants";
+import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 
 const WeightInputModal = ({
   modal,
@@ -26,91 +24,77 @@ const WeightInputModal = ({
   userWeights,
   setuserWeights,
 }) => {
-  const [imageCollection, setimageCollection] = useState([]);
-  const [loading, setloading] = useState(false);
+  const [imageCollection, setImageCollection] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const { appUser, getUser } = useContext(AppContext);
 
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.1,
+      });
+
+      if (!result.canceled) {
+        setImageCollection((prev) => [...prev, result.assets[0].uri]);
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+    }
+  };
+
+  const uploadImageAsync = async (uri) => {
+    const res = await fetch(uri);
+    const blob = await res.blob();
+
+    const storageRef = ref(
+      storage,
+      `users/${appUser.uid}/weightProgress/${new Date().toISOString()}`
+    );
+    const snapshot = await uploadBytesResumable(storageRef, blob);
+    return await getDownloadURL(snapshot.ref);
+  };
+
   const addWeight = async () => {
+    console.log(weightInput);
     if (!weightInput) {
-      Alert.alert("Error", "Please enter a weight value.");
       return;
     }
-
     try {
-      setloading(true);
-      const imageURLS = await uploadImages();
-      const date = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
+      setLoading(true);
+      const date = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+
+      // Upload images and get download URLs
+      const uploadedImageUrls = await Promise.all(
+        imageCollection.map(uploadImageAsync)
+      );
 
       const newWeightRecord = {
         weight: weightInput,
         date,
-        progressImages: imageURLS && imageURLS.length > 0 ? imageURLS : [],
+        progressImages: uploadedImageUrls,
       };
 
-      // Update the user's weight records array by pushing the new record
+      // Update the user's weight records in Firestore
       await updateDoc(doc(db, "users", appUser?.email), {
         "userHealthData.weightRecords": arrayUnion(newWeightRecord),
       });
 
-      await getUser();
+      await getUser(); // Refresh user data
       setuserWeights((prevWeights) => [...prevWeights, newWeightRecord]);
 
+      // Reset state
       setWeightInput("");
-      setimageCollection([]);
+      setImageCollection([]);
       setModal(false);
     } catch (error) {
       console.error("Error adding weight: ", error);
-      Alert.alert("Error", "Failed to save progress. Please try again.");
     } finally {
-      setloading(false);
+      setLoading(false);
     }
-  };
-
-  const chooseProgressImages = async () => {
-    try {
-      let result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        setimageCollection((prevCollection) => [
-          ...prevCollection,
-          result.assets[0].uri,
-        ]);
-      }
-    } catch (error) {
-      console.error("Error choosing images: ", error);
-      Alert.alert("Error", "Failed to choose image. Please try again.");
-    }
-  };
-
-  const uploadImages = async () => {
-    const uploadedUrls = [];
-    for (const uri of imageCollection) {
-      try {
-        const imageRef = ref(
-          storage,
-          `users/progressImages/${
-            appUser?.name
-          }/Weight - ${weightInput} kg/${Date.now()}`
-        );
-        const imageBlob = await getBlobFroUri(uri);
-        await uploadBytes(imageRef, imageBlob);
-        const downloadUrl = await getDownloadURL(imageRef);
-        uploadedUrls.push(downloadUrl);
-      } catch (error) {
-        console.error("Error uploading image:", error);
-        Alert.alert(
-          "Error",
-          "Failed to upload an image. Continuing with others."
-        );
-      }
-    }
-    return uploadedUrls;
   };
 
   return (
@@ -119,65 +103,48 @@ const WeightInputModal = ({
       style={{ margin: 0 }}
       isVisible={modal}
     >
-      <View
-        style={{
-          backgroundColor: "white",
-          height: "70%",
-          width: "90%",
-          alignSelf: "center",
-          borderRadius: 20,
-          padding: 20,
-        }}
-      >
+      <View style={styles.modalContainer}>
         <CustomInput
-          label={"Enter Weight"}
-          placeholder={"Weight"}
+          label="Enter Weight"
+          placeholder="Weight"
           value={weightInput}
           onChangeText={(text) => setWeightInput(text)}
-          type="numeric"
+          type="number-pad"
         />
 
         <CustomButton
-          onClick={chooseProgressImages}
-          title={"Upload Progress Photos"}
-          textColor={"black"}
+          onClick={pickImage}
+          title="Upload Progress Photos"
+          textColor="black"
           colors={["#fff", "#fff"]}
         />
 
-        <ScrollView horizontal style={{ marginTop: 20 }}>
-          {imageCollection.map((data, index) => (
-            <View key={index} style={{ marginRight: 10 }}>
-              <Image
-                style={{ height: 200, width: 120, borderRadius: 20 }}
-                source={{ uri: data }}
-              />
+        <ScrollView horizontal style={styles.imageScroll}>
+          {imageCollection.map((uri, index) => (
+            <View key={index} style={styles.imageContainer}>
+              <Image source={{ uri }} style={styles.image} />
               <Button
+                title="Remove"
                 onPress={() => {
-                  setimageCollection((prevItems) =>
-                    prevItems.filter((_, i) => i !== index)
+                  setImageCollection((prev) =>
+                    prev.filter((_, i) => i !== index)
                   );
                 }}
-                title="Remove"
               />
             </View>
           ))}
         </ScrollView>
 
-        <View
-          style={{
-            position: "absolute",
-            bottom: 10,
-            width: "100%",
-            alignSelf: "center",
-          }}
-        >
-          {loading && <ActivityIndicator />}
-          <CustomButton
-            onClick={addWeight}
-            title={"Save Progress"}
-            textColor={"white"}
-            disabled={loading}
-          />
+        <View style={styles.footer}>
+          {loading ? (
+            <ActivityIndicator size="large" color="#000" />
+          ) : (
+            <CustomButton
+              onClick={addWeight}
+              title="Save Progress"
+              textColor="white"
+            />
+          )}
         </View>
       </View>
     </Modal>
@@ -186,4 +153,30 @@ const WeightInputModal = ({
 
 export default WeightInputModal;
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  modalContainer: {
+    backgroundColor: "white",
+    height: "70%",
+    width: "90%",
+    alignSelf: "center",
+    borderRadius: 20,
+    padding: 20,
+  },
+  imageScroll: {
+    marginTop: 40,
+  },
+  imageContainer: {
+    marginRight: 10,
+  },
+  image: {
+    height: 200,
+    width: 120,
+    borderRadius: 20,
+  },
+  footer: {
+    position: "absolute",
+    bottom: 10,
+    width: "100%",
+    alignSelf: "center",
+  },
+});

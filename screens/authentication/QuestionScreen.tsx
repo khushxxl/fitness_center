@@ -10,32 +10,61 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import * as Progress from "react-native-progress";
 import CustomButton from "../../components/CustomButton";
 import { screens } from "../../utils/constants";
 import QuestionSection from "../../components/QuestionSection";
 import { AppContext } from "../../context/AppContext";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "../../utils/firebase";
 import { useSessionList } from "@clerk/clerk-expo";
+import { getAuth } from "firebase/auth";
 
-const QuestionScreen = ({ navigation , route}) => {
+const QuestionScreen = ({ navigation, route }) => {
   const [questionNumber, setquestionNumber] = useState(0);
   const [progressBarController, setprogressBarController] = useState(0.0);
-const userEmail = route?.params?.userEmail
 
-console.log(userEmail)
-const [loading, setloading] = useState(false)
+  const auth = getAuth();
+  const [loading, setloading] = useState(false);
 
   const [gender, setgender] = useState("");
   const [age, setage] = useState();
-  const [height, setheight] = useState<number>();
-  const [weight, setweight] = useState<number>();
+  const [height, setheight] = useState<any>();
+  const [weight, setweight] = useState<any>();
   const [trainingGoal, settrainingGoal] = useState("");
-  const [sleepHours, setsleepHours] = useState<number>();
-  const [trainingHours, settrainingHours] = useState<number>();
+  const [sleepHours, setsleepHours] = useState<any>();
+  const [trainingHours, settrainingHours] = useState<any>();
   const [allergies, setallergies] = useState();
+
+  const userEmail = auth?.currentUser?.email;
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const userDoc = await getDoc(doc(db, "users", userEmail));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          console.log(data);
+          setgender(data.gender || "");
+          setage(data.age);
+          setheight(data.userHealthData?.height?.toString() + " cm");
+          setweight(data.userHealthData?.weight?.toString() + " kg");
+          settrainingGoal(data.trainingGoal?.toString() || "");
+          setsleepHours(data.sleepHours.toString());
+          settrainingHours(data.trainingHours.toString());
+          setallergies(data.allergies);
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+    };
+
+    if (userEmail) {
+      fetchUserData();
+    }
+  }, [userEmail]);
+
   return (
     <SafeAreaView
       style={{ height: "100%", width: "100%", backgroundColor: "white" }}
@@ -104,7 +133,7 @@ const [loading, setloading] = useState(false)
                 option={weight}
                 keyboardType="numeric"
                 textBox
-                placeholder="Enter Your weight"
+                placeholder="Enter Your weight (in kg)"
               />
               <QuestionSection
                 question="How tall are you?"
@@ -157,11 +186,11 @@ const [loading, setloading] = useState(false)
               />
             </>
           )}
-          {loading&&
-<View style={{marginTop:20}}>
-  <ActivityIndicator color={'black'}/>
-</View>
-          }
+          {loading && (
+            <View style={{ marginTop: 20 }}>
+              <ActivityIndicator color={"black"} />
+            </View>
+          )}
           {/* {questionNumber == 5 && <></>} */}
         </ScrollView>
       </View>
@@ -184,30 +213,29 @@ const [loading, setloading] = useState(false)
               return;
             }
             if (questionNumber == 4) {
-              setloading(true)
+              setloading(true);
               // navigation.navigate(screens.HomeScreen);
 
               try {
-                 await updateDoc(doc(db, "users", 'khushaal.choithramani@gmail.com'), {
-                gender,
-                sleepHours,
-                trainingHours,
-                trainingGoal,
-                allergies,
-                age,
-                userHealthData: {
-                  height,
-                  weight,
-                },
-              }).then(async () => {
-                setloading(false)
-               navigation.navigate(screens.HomeScreen);
-              });
+                await updateDoc(doc(db, "users", userEmail), {
+                  gender,
+                  sleepHours,
+                  trainingHours,
+                  trainingGoal,
+                  allergies,
+                  age,
+                  userHealthData: {
+                    height,
+                    weight,
+                  },
+                }).then(async () => {
+                  setloading(false);
+                  navigation.navigate(screens.HomeScreen);
+                });
               } catch (error) {
-                Alert.alert(error)
-                 setloading(false)
+                Alert.alert(error);
+                setloading(false);
               }
-             
             }
 
             setquestionNumber(questionNumber + 1);
@@ -237,6 +265,5 @@ const [loading, setloading] = useState(false)
 export default QuestionScreen;
 
 const styles = StyleSheet.create({});
-
 
 // khushaal.choithramani@gmail.com

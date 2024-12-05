@@ -2,7 +2,7 @@
   "expo": {
     "name": "Fit Centre",
     "slug": "client",
-    "version": "1.0.8",
+    "version": "1.1.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -21,7 +21,12 @@
     "ios": {
       "supportsTablet": true,
       "usesAppleSignIn": false,
-      "bundleIdentifier": "com.khushcodezz.client"
+      "bundleIdentifier": "com.khushcodezz.client",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "Fit Centre needs access to your health data to track and analyze your fitness activities.",
+        "NSHealthUpdateUsageDescription": "Fit Centre needs permission to update your health data to record your fitness activities and progress."
+      },
+      "buildNumber": "8"
     },
     "android": {
       "adaptiveIcon": {

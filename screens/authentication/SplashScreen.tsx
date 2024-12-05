@@ -15,44 +15,76 @@ import { auth, db } from "../../utils/firebase"; // Ensure your Firebase init is
 
 const SplashScreen = ({ navigation }) => {
   const {
+    appUser,
     setappUser,
     setpromoSections,
     setsettingOptions,
     setallPosts,
     setuserWorkoutLog,
     settrainerWorkoutLog,
+    promoSections,
+    settingOptions,
+    allPosts,
+    userWorkoutLog,
+    trainerWorkoutLog,
   } = useContext(AppContext);
 
   const [isLoading, setIsLoading] = useState(true);
 
   const getData = async (email) => {
     try {
-      const docRef = doc(db, "users", email);
-      const docSnap = await getDoc(docRef);
+      if (!appUser) {
+        const docRef = doc(db, "users", email);
+        const docSnap = await getDoc(docRef);
 
-      if (docSnap.exists()) {
-        const userData = docSnap.data();
-        setappUser(userData);
+        if (docSnap.exists()) {
+          const userData = docSnap.data();
+          setappUser(userData);
 
-        await Promise.all([
-          getHomePromo(),
-          getSettings(),
-          getAllPosts(),
-          getUserWorkoutLogs(email),
-          getTrainerLogs(email),
-        ]);
+          await Promise.all([
+            !promoSections?.length && getHomePromo(),
+            !settingOptions?.length && getSettings(),
+            !allPosts?.length && getAllPosts(),
+            !userWorkoutLog?.length && getUserWorkoutLogs(email),
+            !trainerWorkoutLog?.length && getTrainerLogs(email),
+          ]);
 
-        navigation.navigate("HomeStack");
+          const missingFields = getMissingFields(userData);
+          if (missingFields.length > 0) {
+            navigation.navigate(screens.Question, {
+              userEmail: email,
+              missingFields,
+            });
+          } else {
+            navigation.navigate(screens.HomeScreen);
+          }
+        } else {
+          navigation.navigate(screens.AuthScreen);
+        }
       } else {
-        Alert.alert("Error", "User data not found");
-        navigation.navigate(screens.AuthScreen);
+        navigation.navigate(screens.HomeScreen);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
-      Alert.alert("Error", "Failed to load user data");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const getMissingFields = (userData) => {
+    const requiredFields = [
+      "gender",
+      "age",
+      "height",
+      "weight",
+      "trainingGoal",
+      "sleepHours",
+      "trainingHours",
+      "allergies",
+    ];
+    return requiredFields.filter(
+      (field) => !userData[field] && !userData.userHealthData?.[field]
+    );
   };
 
   const getHomePromo = async () => {

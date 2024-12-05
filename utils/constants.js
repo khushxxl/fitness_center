@@ -27,9 +27,11 @@ export const screens = {
   TrackProgress: "TrackProgess",
   PostScreen: "PostScreen",
   DetailRecipe: "DetailRecipe",
+  WorkoutPlanScreen: "WorkoutPlanScreen",
+  WorkoutPlanDetailScreen: "WorkoutPlanDetailScreen",
 };
 
-export const Trainer_Email = "Info@fit-centre.co.uk";
+export const Trainer_Email = "info@fit-centre.co.uk";
 
 export const images = {
   googleSignIn: require("../assets/images/google.png"),
@@ -51,6 +53,7 @@ export const images = {
   diary_filled: require("../assets/images/diary_filled.png"),
   home_unfilled: require("../assets/images/home_unfilled.png"),
   post_filled: require("../assets/images/post_filled.png"),
+  fc_header_img: require("../assets/images/fc-header.png"),
 };
 
 export const logWorkouts = [

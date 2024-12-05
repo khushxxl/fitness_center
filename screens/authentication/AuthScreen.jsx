@@ -14,12 +14,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { AppContext } from "../../context/AppContext";
 
 const AuthScreen = ({ navigation }) => {
-  // useEffect(() => {
-  //   if (isSignedIn) {
-  //     navigation.navigate("HomeStack");
-  //   }
-  // }, [isSignedIn]);
-
   return (
     <View>
       <LinearGradient

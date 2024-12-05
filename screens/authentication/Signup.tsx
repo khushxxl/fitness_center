@@ -6,30 +6,25 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Alert,
   View,
   Platform,
-  Alert,
 } from "react-native";
-
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CustomInput from "../../components/CustomInput";
 import CustomButton from "../../components/CustomButton";
 import { AppContext } from "../../context/AppContext";
 import { screens, Trainer_Email } from "../../utils/constants";
-import * as firebase from "firebase/compat/app";
-import EmailForm from "./EmailForm";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../../utils/firebase";
 import { createUserWithEmailAndPassword, getAuth } from "firebase/auth";
 
 const Signup = ({ navigation }) => {
-  const { setAppUser } = useContext(AppContext);
+  const { setuserData } = useContext(AppContext);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [pendingVerification, setPendingVerification] = useState(false);
 
   const handleSignup = async () => {
     if (password !== confirmPassword) {
@@ -39,50 +34,39 @@ const Signup = ({ navigation }) => {
 
     try {
       const auth = getAuth();
-      createUserWithEmailAndPassword(auth, email, password)
-        .then(async (userCredential) => {
-          if (userCredential) {
-            await saveUserToStorage(userCredential);
-            await addUserToDatabase();
-            navigation.navigate(screens.Question, { userEmail: email });
-          }
-        })
-        .catch((e) => {
-          Alert.alert("Signup Error", e.message);
-          console.error(e);
-        });
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+      if (userCredential) {
+        await addUserToDatabase(email);
+        await saveUserToStorage(userCredential.user);
+        navigation.navigate(screens.Question, { userEmail: email });
+      }
     } catch (error) {
       Alert.alert("Signup Error", error.message);
-      console.error(error);
     }
   };
 
-  const addUserToDatabase = async () => {
-    const userDocRef = doc(db, "users", email);
+  const addUserToDatabase = async (email) => {
     try {
+      const userDocRef = doc(db, "users", email);
       await setDoc(userDocRef, {
-        name: name,
-        email: email,
+        name,
+        email,
         photo: "",
         isTrainer: false,
         trainer: Trainer_Email,
-      })
-        .then(async () => {
-          const docRef = doc(db, "users", email);
-          const docSnap = await getDoc(docRef);
+      });
 
-          if (docSnap.exists()) {
-            setAppUser(docSnap.data());
-            navigation.navigate(screens.Question, { userEmail: email });
-          }
-        })
-        .catch((e) => {
-          alert(e.message);
-        });
-
-      console.log("Document written with ID: ", userDocRef.id);
-    } catch (e) {
-      console.error("Error adding document: ", e);
+      const docSnap = await getDoc(userDocRef);
+      if (docSnap.exists()) {
+        setuserData(docSnap.data());
+      }
+    } catch (error) {
+      console.error("Error adding document: ", error);
     }
   };
 
@@ -90,9 +74,9 @@ const Signup = ({ navigation }) => {
     try {
       const jsonValue = JSON.stringify(user);
       await AsyncStorage.setItem("user", jsonValue);
-      setAppUser(user);
-    } catch (e) {
-      console.log("Error saving user: ", e);
+      setuserData(user);
+    } catch (error) {
+      console.log("Error saving user: ", error);
     }
   };
 
@@ -110,16 +94,37 @@ const Signup = ({ navigation }) => {
             />
             <Text style={styles.title}>Create your Account</Text>
           </View>
-          <EmailForm
-            email={email}
-            setEmail={setEmail}
-            name={name}
-            setName={setName}
-            password={password}
-            setPassword={setPassword}
-            confirmPassword={confirmPassword}
-            setConfirmPassword={setConfirmPassword}
-            handleSignup={handleSignup}
+
+          <CustomInput
+            label="Name"
+            placeholder="Enter your Name"
+            value={name}
+            onChangeText={setName}
+          />
+          <CustomInput
+            label="Email"
+            placeholder="Enter your Email"
+            value={email}
+            onChangeText={setEmail}
+          />
+          <CustomInput
+            label="Password"
+            placeholder="Enter your Password"
+            value={password}
+            onChangeText={setPassword}
+            isPassword
+          />
+          <CustomInput
+            label="Confirm Password"
+            placeholder="Confirm your Password"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            isPassword
+          />
+          <CustomButton
+            title="Sign Up"
+            onClick={handleSignup}
+            textColor="white"
           />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -136,8 +141,4 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", marginTop: 10 },
   logo: { height: 50, width: 50, marginLeft: 20 },
   title: { marginLeft: 10, fontSize: 20, fontWeight: "bold" },
-  form: { marginTop: 20 },
-  buttonContainer: { marginTop: 20 },
-  signInText: { fontSize: 15, textAlign: "center", marginTop: 10 },
-  signInLink: { textDecorationLine: "underline" },
 });

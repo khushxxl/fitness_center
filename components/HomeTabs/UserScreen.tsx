@@ -1,252 +1,148 @@
 import {
-  Alert,
-  Dimensions,
   Image,
-  ImageBackground,
   Linking,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import React, { useContext, useEffect, useState } from "react";
-import Carousel, { Pagination } from "react-native-snap-carousel";
+import React, { useContext, useEffect } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import * as Progress from "react-native-progress";
-
-import { images, screens } from "../../utils/constants";
-import SearchExercise from "../SearchExercise";
-import usePedometer from "../../hooks/usePedometer";
-import UserProfile from "./UserProfile";
-import { collection, doc, getDoc, getDocs } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../utils/firebase";
 import { AppContext } from "../../context/AppContext";
-import * as MailComposer from "expo-mail-composer";
 import { getAuth } from "firebase/auth";
 import HomeHeader from "../HomeHeader";
+import EditProfileSheet from "../CustomComponents/EditProfileSheet";
+import { screens } from "../../utils/constants";
+import UserProfile from "./UserProfile";
+import { Link } from "@react-navigation/native";
 
 const UserScreen = ({ navigation }) => {
-  const [status, setStatus] = useState(null);
-
-  // const { user } = useUser();
+  const [showProfileModal, setShowProfileModal] = React.useState(false);
+  const { promoSections, setpromoSections } = useContext(AppContext);
   const auth = getAuth();
 
-  const user = auth?.currentUser;
-  console.log("HomeScreen", user);
-  const HomeCard = ({
-    cardTitle,
-    imageURL,
-  }: {
-    cardTitle: string;
-    imageURL: string;
-  }) => {
-    return (
-      <TouchableOpacity style={{}}>
-        {imageURL && (
-          <Image
-            height={200}
-            width={180}
-            style={{ borderRadius: 10 }}
-            source={{
-              uri: imageURL,
-            }}
-          />
-        )}
+  const HomeCard = ({ cardTitle, imageURL, link }) => (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => (link ? Linking.openURL(link) : null)}
+    >
+      {imageURL && (
+        <Image
+          style={styles.cardImage}
+          source={{ uri: imageURL }}
+          resizeMode="cover"
+        />
+      )}
+      <View style={styles.cardTitleContainer}>
+        <Text style={styles.cardTitle}>{cardTitle}</Text>
+      </View>
+    </TouchableOpacity>
+  );
 
-        <View style={{ marginTop: 10 }}>
-          <Text style={{ fontWeight: "bold" }}>{cardTitle}</Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const StatComponent = ({ text, data }) => (
+    <TouchableOpacity style={styles.statCard}>
+      <Text style={styles.statTitle}>{text}</Text>
+      <Text style={styles.statData}>{data}</Text>
+    </TouchableOpacity>
+  );
 
-  const StatComponent = ({ text, data }) => {
-    return (
-      <TouchableOpacity
-        style={{
-          backgroundColor: "#E5E4E2",
-          alignSelf: "flex-start",
-          height: 120,
-          padding: 10,
-          width: 150,
-          borderRadius: 14,
-        }}
-      >
-        <Text style={{ fontWeight: "bold", marginTop: 10 }}>{text}</Text>
-        <Text style={{ marginTop: 4, fontSize: 18, fontWeight: "bold" }}>
-          {data}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
-  const { promoSections, setpromoSections } = useContext(AppContext);
-
-  const handleEmailPress = () => {
+  const handleScheduleCall = () => {
     const calendarUrl = "https://cal.com/marc-risi/15min";
-
-    // Open the calendar URL
     Linking.openURL(calendarUrl).catch((err) =>
       console.error("Error opening calendar URL:", err)
     );
   };
-  // const { steps, distance, flights } = useHealthData();
-  const { isPedometerAvailable, stepCount } = usePedometer();
 
-  // const [promoSections, setpromoSections] = useState([]);
   const getHomePromo = async () => {
-    const promos: any = [];
-    const querySnapshot = await getDocs(collection(db, "home"));
-    querySnapshot.forEach((doc) => {
-      promos.push(doc.data());
-      console.log(doc.id, " => ", doc.data());
-    });
-    setpromoSections(promos);
+    try {
+      const querySnapshot = await getDocs(collection(db, "home"));
+      const promos = querySnapshot.docs.map((doc) => doc.data());
+      setpromoSections(promos);
+    } catch (error) {
+      console.error("Error fetching home promos:", error);
+    }
   };
 
   useEffect(() => {
     getHomePromo();
   }, []);
 
-  const HomeSectionButton = ({ title, onPress }) => {
-    return (
-      <TouchableOpacity
-        onPress={async () => {
-          await onPress();
-        }}
-        style={{
-          backgroundColor: "#E5E4E2",
-          width: "90%",
-          alignSelf: "center",
-          marginTop: 20,
-          padding: 20,
-          borderRadius: 20,
-          justifyContent: "space-between",
-          flexDirection: "row",
-        }}
-      >
-        <Text style={{ fontWeight: "bold" }}>{title}</Text>
-        <Ionicons name="chevron-forward" size={20} />
-      </TouchableOpacity>
-    );
-  };
+  const HomeSectionButton = ({ title, onPress }) => (
+    <TouchableOpacity onPress={onPress} style={styles.sectionButton}>
+      <Text style={styles.sectionButtonText}>{title}</Text>
+      <Ionicons name="chevron-forward" size={20} />
+    </TouchableOpacity>
+  );
 
-  const [showProfileModal, setshowProfileModal] = useState(false);
+  if (showProfileModal) {
+    return (
+      <UserProfile
+        navigation={navigation}
+        showUserProfile={showProfileModal}
+        setShowUserProfile={setShowProfileModal}
+      />
+    );
+  }
+
   return (
-    <SafeAreaView style={{ height: "100%" }}>
-      {showProfileModal && (
-        <UserProfile
-          setShowUserProfile={setshowProfileModal}
-          showUserProfile={showProfileModal}
-          navigation={navigation}
-        />
-      )}
-      <ScrollView style={{ width: "100%", height: "100%" }}>
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
         <HomeHeader
           navigation={navigation}
-          onImagePress={() => setshowProfileModal(true)}
+          onImagePress={() => setShowProfileModal(true)}
         />
-        <View style={{ marginLeft: 20, marginTop: 10 }}>
-          <Text style={{ fontWeight: "bold", fontSize: 20 }}>
-            Hey {user?.displayName}, Good Morning!
-          </Text>
-        </View>
-        <Text
-          style={{
-            fontWeight: "bold",
-            fontSize: 16,
-            marginLeft: 20,
-            marginTop: 18,
-          }}
-        >
-          New Arrivals
-        </Text>
-        <View
-          style={{
-            justifyContent: "space-evenly",
-            width: "100%",
-            alignItems: "center",
-            marginTop: 10,
-            flexDirection: "row",
-          }}
-        >
-          {promoSections &&
-            promoSections?.map((data, i) => {
-              return (
-                <HomeCard
-                  key={i}
-                  imageURL={data?.img}
-                  cardTitle={data?.title}
-                />
-              );
-            })}
-        </View>
-        {/* <CallCard /> */}
 
-        <View style={{ marginTop: 40 }}>
-          <Text
-            style={{
-              fontWeight: "bold",
-              fontSize: 16,
-              marginLeft: 20,
-              marginTop: 18,
-            }}
-          >
-            Quick Actions
-          </Text>
+        <Text style={styles.sectionHeader}>New Arrivals</Text>
+        <View style={styles.cardGridContainer}>
+          {promoSections?.map((data, i) => (
+            <HomeCard
+              key={i}
+              imageURL={data?.img}
+              cardTitle={data?.title}
+              link={data?.link}
+            />
+          ))}
+        </View>
+
+        <View style={styles.quickActionsContainer}>
+          <Text style={styles.sectionHeader}>Quick Actions</Text>
           <HomeSectionButton
-            title={"Track all your workout progress"}
+            title="Track Workout Progress"
             onPress={() => navigation.navigate(screens.TrackProgress)}
           />
           <HomeSectionButton
-            title={"Schedule a call with an Expert"}
-            onPress={handleEmailPress}
+            title="Schedule Expert Call"
+            onPress={handleScheduleCall}
           />
         </View>
 
-        <Text
-          style={{
-            fontWeight: "bold",
-            fontSize: 16,
-            marginLeft: 20,
-            marginTop: 30,
-          }}
-        >
-          Track
-        </Text>
-        <View
-          style={{
-            flexDirection: "row",
-            marginTop: 10,
-            justifyContent: "space-evenly",
-          }}
-        >
-          <StatComponent
-            text={"Steps"}
-            data={
-              isPedometerAvailable === "checking"
-                ? "Checking..."
-                : isPedometerAvailable === "true"
-                  ? stepCount
-                  : "Not available"
-            }
-          />
-          <StatComponent text={"Sleep Tracker"} data={"Coming Soon"} />
+        <Text style={styles.sectionHeader}>Track</Text>
+        <View style={styles.statsContainer}>
+          <StatComponent text="Steps" data="Not Available" />
+          <StatComponent text="Sleep Tracker" data="Coming Soon" />
         </View>
 
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-evenly",
-            marginTop: 20,
-          }}
-        >
-          <StatComponent text={"Heart Rate"} data={"Coming Soon"} />
-          <StatComponent text={"Avg Calories"} data={"Coming Soon"} />
+        <View style={styles.statsContainer}>
+          <StatComponent text="Heart Rate" data="Coming Soon" />
+          <StatComponent text="Avg Calories" data="Coming Soon" />
         </View>
-        <View style={{ height: 50 }} />
+
+        <View style={{ marginTop: 24 }}>
+          <HomeSectionButton
+            title="Food and Nutrition"
+            onPress={() => {
+              Linking.openURL("https://violet-candide-27.tiiny.site");
+            }}
+          />
+        </View>
+        <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -255,9 +151,85 @@ const UserScreen = ({ navigation }) => {
 export default UserScreen;
 
 const styles = StyleSheet.create({
-  button: {
-    padding: 15,
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  scrollView: {
+    flex: 1,
+  },
+  card: {
+    width: "48%",
+    marginBottom: 16,
+  },
+  cardImage: {
+    height: 200,
+    width: "100%",
+    borderRadius: 12,
+  },
+  cardTitleContainer: {
+    marginTop: 8,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  statCard: {
+    backgroundColor: "#f5f5f5",
+    padding: 16,
+    width: "45%",
+    borderRadius: 16,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  statTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+  statData: {
+    marginTop: 8,
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#0086C9",
+  },
+  sectionButton: {
+    backgroundColor: "#f5f5f5",
+    marginHorizontal: 20,
+    marginTop: 12,
+    padding: 16,
+    borderRadius: 16,
+    flexDirection: "row",
     alignItems: "center",
-    borderRadius: 5,
+    justifyContent: "space-between",
+  },
+  sectionButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  sectionHeader: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginLeft: 20,
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  cardGridContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+  },
+  quickActionsContainer: {
+    marginTop: 24,
+  },
+  statsContainer: {
+    flexDirection: "row",
+    marginHorizontal: 20,
+    marginTop: 12,
+    justifyContent: "space-between",
   },
 });

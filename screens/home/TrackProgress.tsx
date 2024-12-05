@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useCallback } from "react";
 import {
   Dimensions,
   Image,
@@ -8,183 +8,203 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { LineChart } from "react-native-chart-kit";
 import { AppContext } from "../../context/AppContext";
 import CustomIcon from "../../components/CustomIcon";
 import CustomButton from "../../components/CustomButton";
 import WeightInputModal from "../../components/WeightInputModal";
-import { images } from "../../utils/constants";
 import { getAuth } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../utils/firebase";
 
 const TrackProgress = ({ navigation }) => {
-  const { appUser, getUser } = useContext(AppContext);
   const auth = getAuth();
+  const screenWidth = Dimensions.get("window").width;
+  const { userData } = useContext(AppContext);
 
+  const [weightModal, setWeightModal] = useState(false);
   const [weightInput, setWeightInput] = useState(null);
   const [userWeights, setUserWeights] = useState([]);
   const [selectedData, setSelectedData] = useState(null);
-  const [weightModal, setWeightModal] = useState(false);
-  const screenWidth = Dimensions.get("window").width;
   const [view, setView] = useState("week");
-  const [user, setuser] = useState<any>();
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchUserData = async () => {
+  // Fetch user data from Firestore
+  const fetchUserData = useCallback(async () => {
+    try {
       if (auth.currentUser) {
         const userDocRef = doc(db, "users", auth.currentUser.email);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
-          const userData: any = userDocSnap.data();
-          setuser(userData);
+          const userData = userDocSnap.data();
           setUserWeights(userData.userHealthData?.weightRecords || []);
-          // setSelectedData(userData?.weightRecords[0]);
+          setSelectedData({
+            weight: userData?.userHealthData.weight,
+          });
+          console.log(userData?.userHealthData?.weight);
         }
       }
-    };
-    fetchUserData();
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    } finally {
+      setLoading(false);
+    }
   }, [auth.currentUser]);
 
-  // Filter data based on the selected view
+  useEffect(() => {
+    fetchUserData();
+  }, [fetchUserData]);
+
+  // Filter weight records based on selected view (week, month, year)
   const filterData = (data, view) => {
     const now = new Date();
     let filteredData;
+
     switch (view) {
       case "week":
         filteredData = data.filter(
-          (d) => new Date(d.date) > new Date(now.setDate(now.getDate() - 7))
+          (d) => new Date(d.date) >= new Date(now.setDate(now.getDate() - 7))
         );
         break;
       case "month":
         filteredData = data.filter(
-          (d) => new Date(d.date) > new Date(now.setMonth(now.getMonth() - 1))
+          (d) => new Date(d.date) >= new Date(now.setMonth(now.getMonth() - 1))
         );
         break;
       case "year":
         filteredData = data.filter(
           (d) =>
-            new Date(d.date) > new Date(now.setFullYear(now.getFullYear() - 1))
+            new Date(d.date) >= new Date(now.setFullYear(now.getFullYear() - 1))
         );
         break;
       default:
         filteredData = data;
     }
-    // Ensure weights are numbers
+
     return filteredData.map((d) => ({
       ...d,
-      weight: Number(d.weight),
+      weight: parseFloat(d.weight) || 0, // Ensure weight is a number
     }));
   };
 
   const graphData = filterData(userWeights, view);
   const dataPoints = graphData.map((d) => d.weight);
-  const labels = graphData.map((d, index) => index + 1); // Example labels for x-axis
+  const labels = graphData.map((_, index) => index + 1); // X-axis labels as indexes
+
+  // Handle selection of chart data point
+  const handleDataPointClick = (data) => {
+    const selectedPoint = graphData[data.index];
+    setSelectedData({
+      weight: selectedPoint.weight,
+      progressImages: selectedPoint.progressImages || [],
+    });
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.centeredContainer}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      <WeightInputModal
-        modal={weightModal}
-        setModal={setWeightModal}
-        weightInput={weightInput}
-        setWeightInput={setWeightInput}
-        userWeights={userWeights}
-        setuserWeights={setUserWeights}
-      />
-      <View style={styles.header}>
-        <CustomIcon
-          styles={styles.backIcon}
-          name="chevron-back-outline"
-          onClick={() => navigation.goBack()}
-          size={24}
+      <ScrollView>
+        <WeightInputModal
+          modal={weightModal}
+          setModal={setWeightModal}
+          weightInput={weightInput}
+          setWeightInput={setWeightInput}
+          userWeights={userWeights}
+          setuserWeights={setUserWeights}
         />
-        <Text style={styles.title}>Your Progress</Text>
-      </View>
-      <TouchableOpacity style={styles.weightDisplay}>
-        <Text style={styles.weightText}>
-          {selectedData
-            ? `${selectedData.weight} kg`
-            : userWeights.length > 0
-              ? `${userWeights[userWeights.length - 1]?.weight} kg`
-              : user?.weight}
-        </Text>
-      </TouchableOpacity>
 
-      <View style={{ width: "70%", alignSelf: "center" }}>
-        <CustomButton
-          onClick={() => setWeightModal(!weightModal)}
-          title="Update"
-          textColor="white"
-        />
-      </View>
-      <View style={styles.chartContainer}>
-        {dataPoints.length > 0 && (
-          <LineChart
-            data={{
-              labels,
-              datasets: [{ data: dataPoints }],
-            }}
-            width={screenWidth - 16}
-            height={220}
-            yAxisLabel=""
-            yAxisSuffix="kg"
-            chartConfig={{
-              backgroundColor: "#e26a00",
-              decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-              style: {
-                borderRadius: 16,
-              },
-              propsForDots: {
-                r: "6",
-                strokeWidth: "2",
-                stroke: "#ffa726",
-              },
-            }}
-            onDataPointClick={(data) => {
-              const selectedPoint = graphData[data.index];
-              setSelectedData({
-                weight: selectedPoint.weight,
-                progressImages: selectedPoint.progressImages,
-              });
-              console.log("Selected Point:", selectedPoint);
-            }}
-            bezier
-            style={styles.chartStyle}
+        <View style={styles.header}>
+          <CustomIcon
+            name="chevron-back-outline"
+            onClick={() => navigation.goBack()}
+            size={24}
+            styles={styles.backIcon}
           />
+        </View>
+        <View style={{ alignItems: "center" }}>
+          <Text style={styles.title}>Your Progress</Text>
+          <Text style={styles.weightText}>
+            {selectedData
+              ? `${selectedData.weight} kg`
+              : userWeights.length > 0
+                ? `${userWeights[userWeights.length - 1]?.weight} kg`
+                : userData?.weight.toString()}
+          </Text>
+        </View>
+
+        <View style={styles.updateButtonContainer}>
+          <CustomButton
+            onClick={() => setWeightModal(true)}
+            title="Update"
+            textColor="white"
+          />
+        </View>
+
+        <View style={styles.chartContainer}>
+          {dataPoints.length > 0 ? (
+            <LineChart
+              data={{
+                labels,
+                datasets: [{ data: dataPoints }],
+              }}
+              width={screenWidth - 16}
+              height={220}
+              yAxisSuffix="kg"
+              chartConfig={{
+                backgroundColor: "#e26a00",
+                decimalPlaces: 0,
+                color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                style: { borderRadius: 16 },
+                propsForDots: {
+                  r: "6",
+                  strokeWidth: "2",
+                  stroke: "#ffa726",
+                },
+              }}
+              onDataPointClick={handleDataPointClick}
+              bezier
+              style={styles.chartStyle}
+            />
+          ) : (
+            <Text style={styles.noDataText}>No weight records available.</Text>
+          )}
+        </View>
+
+        <View style={styles.viewSelector}>
+          {["week", "month", "year"].map((v) => (
+            <TouchableOpacity
+              key={v}
+              onPress={() => setView(v)}
+              style={[styles.viewButton, view === v && styles.selectedView]}
+            >
+              <Text style={styles.viewButtonText}>
+                {v.charAt(0).toUpperCase() + v.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {selectedData?.progressImages?.length > 0 && (
+          <Text style={styles.progressPhotosTitle}>Progress Photos</Text>
         )}
-      </View>
-      <View style={styles.viewSelector}>
-        <TouchableOpacity
-          onPress={() => setView("year")}
-          style={[styles.viewButton, view === "year" && styles.selectedView]}
-        >
-          <Text style={styles.viewButtonText}>Year</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setView("month")}
-          style={[styles.viewButton, view === "month" && styles.selectedView]}
-        >
-          <Text style={styles.viewButtonText}>Month</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setView("week")}
-          style={[styles.viewButton, view === "week" && styles.selectedView]}
-        >
-          <Text style={styles.viewButtonText}>Week</Text>
-        </TouchableOpacity>
-      </View>
-      {selectedData && selectedData?.progressImages?.length > 0 && (
-        <Text style={styles.progressPhotosTitle}>Progress Photos</Text>
-      )}
-      <ScrollView horizontal style={styles.scrollView}>
-        {selectedData?.progressImages?.map((image, index) => (
-          <View key={index} style={styles.imageContainer}>
-            <Image style={styles.image} source={{ uri: image }} />
-          </View>
-        ))}
+
+        <ScrollView horizontal style={styles.scrollView}>
+          {selectedData?.progressImages?.map((image, index) => (
+            <View key={index} style={styles.imageContainer}>
+              <Image source={{ uri: image }} style={styles.image} />
+            </View>
+          ))}
+        </ScrollView>
       </ScrollView>
     </SafeAreaView>
   );
@@ -194,88 +214,81 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    marginTop: 10,
+  centeredContainer: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    flexDirection: "row",
   },
-  logo: {
-    height: 13,
-    width: 140,
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
   },
   backIcon: {
     marginLeft: 10,
-    marginTop: 10,
   },
   title: {
+    flex: 1,
     textAlign: "center",
-    marginTop: 10,
-    fontWeight: "bold",
     fontSize: 20,
-    color: "gray",
+    fontWeight: "bold",
   },
   weightDisplay: {
     alignSelf: "center",
-    marginTop: 20,
+    marginVertical: 20,
   },
   weightText: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: "bold",
   },
-  buttonContainer: {
-    alignSelf: "center",
-    marginTop: 40,
-    justifyContent: "center",
+  updateButtonContainer: {
+    marginVertical: 20,
+    marginHorizontal: 20,
   },
   chartContainer: {
     alignSelf: "center",
-    marginTop: 40,
-    justifyContent: "center",
+    marginVertical: 20,
   },
   chartStyle: {
-    marginVertical: 8,
     borderRadius: 16,
   },
+  noDataText: {
+    textAlign: "center",
+    fontSize: 16,
+  },
   viewSelector: {
-    alignSelf: "center",
     flexDirection: "row",
-    justifyContent: "space-evenly",
-    width: "80%",
-    marginTop: 20,
-    backgroundColor: "lightgray",
-    padding: 5,
-    borderRadius: 20,
-    alignItems: "center",
+    justifyContent: "center",
+    marginVertical: 10,
   },
   viewButton: {
-    padding: 5,
+    marginHorizontal: 5,
+    padding: 10,
     borderRadius: 10,
-    paddingHorizontal: 8,
   },
   selectedView: {
-    backgroundColor: "white",
+    backgroundColor: "lightgray",
   },
   viewButtonText: {
     fontWeight: "bold",
   },
   progressPhotosTitle: {
-    fontWeight: "bold",
-    fontSize: 18,
-    marginTop: 15,
     marginLeft: 20,
+    marginVertical: 10,
+    fontSize: 18,
+    fontWeight: "bold",
   },
   scrollView: {
-    alignSelf: "flex-start",
-    width: "100%",
+    paddingHorizontal: 10,
+    marginBottom: 20,
   },
   imageContainer: {
-    marginTop: 30,
-    marginLeft: 20,
+    marginRight: 10,
   },
   image: {
-    height: 200,
     width: 120,
-    borderRadius: 20,
+    height: 200,
+    borderRadius: 10,
   },
 });
 

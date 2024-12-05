@@ -25,7 +25,7 @@ const PlanDetailModal = ({
   planDetails,
 }: {
   modal: boolean;
-  setIsModal: boolean;
+  setIsModal: (value: boolean) => void;
   planDetails: any;
 }) => {
   console.log("Plan", planDetails);

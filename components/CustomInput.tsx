@@ -7,11 +7,12 @@ import {
 } from "react-native";
 import React, { useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { KeyboardTypeOptions } from "react-native";
 
 const CustomInput = ({
   autofocus = false,
   label = "",
-  placeholder,
+  placeholder = "",
   value,
   onChangeText,
   multiLine = false,
@@ -20,6 +21,7 @@ const CustomInput = ({
   isPassword = false,
   mt = 30,
   styles = {},
+  maxlines = 0,
 }) => {
   const [showPass, setShowPass] = useState(false);
 
@@ -40,7 +42,6 @@ const CustomInput = ({
           justifyContent: "center",
           marginHorizontal: 10,
           flexDirection: "row",
-          alignItems: "center",
         }}
       >
         <TextInput
@@ -50,10 +51,11 @@ const CustomInput = ({
           onChangeText={onChangeText}
           value={value}
           multiline={multiLine}
-          keyboardType={type}
+          keyboardType={type as KeyboardTypeOptions}
           autoFocus={autofocus}
           editable={editable}
           secureTextEntry={isPassword && !showPass}
+          numberOfLines={maxlines}
         />
         {isPassword && (
           <TouchableOpacity onPress={() => setShowPass(!showPass)}>

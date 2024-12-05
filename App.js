@@ -6,8 +6,6 @@ import SplashScreen from "./screens/authentication/SplashScreen";
 import AuthStack from "./screens/authentication/AuthStack";
 import AppProvider from "./context/AppContext";
 import HomeStack from "./screens/home/HomeStack";
-import { StripeProvider } from "@stripe/stripe-react-native";
-import * as SecureStore from "expo-secure-store";
 
 import { onAuthStateChanged } from "firebase/auth"; // Import auth state listener
 import React, { useEffect, useState } from "react";
@@ -32,7 +30,7 @@ export default function App() {
   return (
     <AppProvider>
       <NavigationContainer>
-        <StatusBar style="auto" />
+        <StatusBar style="dark" />
         <Stack.Navigator screenOptions={{ gestureEnabled: false }}>
           {user ? (
             <Stack.Screen

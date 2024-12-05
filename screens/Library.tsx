@@ -23,6 +23,7 @@ const Library = ({ navigation }) => {
 
   const [libraryModal, setlibraryModal] = useState(false);
   const [exerciseDataModal, setexerciseDataModal] = useState(null);
+
   useEffect(() => {
     if (exerciseDataModal) {
       setlibraryModal(true);
@@ -109,23 +110,12 @@ const Library = ({ navigation }) => {
   };
   return (
     <SafeAreaView style={{ height: "100%", backgroundColor: "white", flex: 1 }}>
-      {/* <LibraryModal
-        navigation={navigation}
-        exerciseDataModal={exerciseDataModal}
-        setexerciseDataModal={setexerciseDataModal}
-        modal={libraryModal}
-        setModal={setlibraryModal}
-      /> */}
-
       <View style={{ marginTop: 10 }}>
         <Image
-          source={images.fcTextLogo}
-          style={{ height: 13, width: 140, alignSelf: "center" }}
+          source={images.fc_header_img}
+          style={{ height: 20, width: 170, alignSelf: "center" }}
         />
       </View>
-      {/* <View style={{ marginTop: 30 }}>
-        <SearchExercise navigation={navigation} />
-      </View> */}
 
       <View
         style={{

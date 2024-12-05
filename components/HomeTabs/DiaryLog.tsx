@@ -1,3 +1,4 @@
+import React, { useContext, useEffect, useState, useCallback } from "react";
 import {
   Image,
   RefreshControl,
@@ -7,38 +8,35 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Alert,
 } from "react-native";
-import React, { useContext, useEffect, useState } from "react";
 import CalendarStrip from "react-native-calendar-strip";
-import CustomFloatingButton from "../CustomFloatingButton";
-import DiaryEntryModal from "./DiaryEntryModal";
-import moment, { Moment } from "moment";
-
 import Ionicons from "@expo/vector-icons/Ionicons";
-import * as Progress from "react-native-progress";
-import { collection, getDocs } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  deleteDoc,
+  doc,
+  where,
+  query,
+  orderBy,
+} from "firebase/firestore";
 import { db } from "../../utils/firebase";
 import { AppContext } from "../../context/AppContext";
-
+import CustomFloatingButton from "../CustomFloatingButton";
+import DiaryEntryModal from "./DiaryEntryModal";
+import CustomCard from "../CustomComponents/CustomCard";
+import { screens } from "../../utils/constants";
 const DiaryLog = ({ navigation }) => {
-  const [isModalVisible, setModalVisible] = useState<boolean>(false);
-  const [dateTapped, setdateTapped] = useState<Date>(new Date());
-
-  const {
-    userWorkoutLog,
-    setuserWorkoutLog,
-    trainerWorkoutLog,
-    settrainerWorkoutLog,
-  } = useContext(AppContext);
-
-  // const [userWorkoutLog, setuserWorkoutLog] = useState([]);
-  // const [trainerWorkoutLog, settrainerWorkoutLog] = useState([]);
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [dateTapped, setDateTapped] = useState(new Date());
+  const [clickedData, setClickedData] = useState(null);
+  const [sectionSelected, setSectionSelected] = useState("diary");
+  const [refreshing, setRefreshing] = useState(false);
 
   const { appUser } = useContext(AppContext);
-  const [clickedData, setclickedData] = useState(undefined);
-  const [sectionSelected, setsectionSelected] = useState<"diary" | "workout">(
-    "diary"
-  );
+  const [userWorkoutLog, setuserWorkoutLog] = useState([]);
+  const [trainerWorkoutLog, settrainerWorkoutLog] = useState([]);
 
   useEffect(() => {
     getAllWorkoutLogs();
@@ -51,245 +49,220 @@ const DiaryLog = ({ navigation }) => {
     }
   }, [clickedData]);
 
-  // console.log(dateTapped.toDateString());
-
   const getAllWorkoutLogs = async () => {
     const workoutLogs = [];
-    const query = collection(db, `workoutlogs/${appUser?.email}/logs`);
-    const querySnapshot = await getDocs(query);
-    querySnapshot.forEach(async (doc) => {
-      await workoutLogs.push({ id: doc.id, ...doc.data() });
-      console.log(doc.data());
+    const q = query(
+      collection(db, `workoutlogs/${appUser?.email}/logs`),
+      orderBy("timestamp", "desc")
+    );
+    const querySnapshot = await getDocs(q);
+    querySnapshot.forEach((doc) => {
+      workoutLogs.push({ id: doc.id, ...doc.data() });
     });
     setuserWorkoutLog(workoutLogs);
-    // console.log(workoutLogs);
   };
 
   const getTrainerLogs = async () => {
-    const workoutLogs = [];
-    const query = collection(db, `workoutlogs/${appUser?.email}/trainerLog`);
-    const querySnapshot = await getDocs(query);
-    querySnapshot.forEach(async (doc) => {
-      await workoutLogs.push({ id: doc.id, ...doc.data() });
-      console.log(doc.data());
-    });
+    const collectionRef = collection(db, "workoutPlans");
+    const q = query(collectionRef, where("userEmail", "==", appUser?.email));
+    const querySnapshot = await getDocs(q);
+    const workoutLogs = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
     settrainerWorkoutLog(workoutLogs);
-    // console.log(workoutLogs);
   };
-  const [refreshing, setRefreshing] = React.useState(false);
 
-  const onRefresh = React.useCallback(() => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setTimeout(async () => {
-      await getAllWorkoutLogs();
-      await getTrainerLogs();
+    Promise.all([getAllWorkoutLogs(), getTrainerLogs()]).then(() => {
       setRefreshing(false);
-    }, 2000);
+    });
   }, []);
 
-  const LogComponent = ({ data }) => {
-    return (
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          height: 140,
-          justifyContent: "space-evenly",
-          marginTop: 15,
-        }}
-      >
-        <TouchableOpacity
-          onPress={() => {
-            setclickedData(data);
+  const deleteLog = async (logId) => {
+    Alert.alert("Delete Log", "Are you sure you want to delete this log?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Delete",
+        onPress: async () => {
+          try {
+            await deleteDoc(
+              doc(db, `workoutlogs/${appUser?.email}/logs`, logId)
+            );
+            await getAllWorkoutLogs();
+          } catch (error) {
+            console.error("Error deleting log:", error);
+            Alert.alert("Error", "Failed to delete log. Please try again.");
+          }
+        },
+        style: "destructive",
+      },
+    ]);
+  };
 
-            // setModalVisible(true);
-            // console.log(clickedData);
-          }}
-          style={{
-            width: "80%",
-            borderColor: "#D0D5DD",
-            borderWidth: 2,
-            borderRadius: 8,
-            alignSelf: "center",
-            marginTop: 10,
-            height: "100%",
-            backgroundColor: "#FFFCF5",
-            padding: 10,
-            justifyContent: "space-evenly",
-          }}
-        >
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
+  const LogComponent = ({ data }) => (
+    <View style={styles.logContainer}>
+      <TouchableOpacity
+        onPress={() => setClickedData(data)}
+        style={styles.logTouchable}
+      >
+        <View style={styles.logHeader}>
+          <View style={styles.logHeaderLeft}>
+            <View style={styles.iconContainer}>
               <Image
                 source={require("../../assets/icons/heartIcon.png")}
-                style={{ height: 30, width: 35 }}
+                style={styles.logIcon}
               />
-              <View style={{ marginLeft: 10 }}>
-                <Text>Cardio</Text>
-                <Text>{data?.selectedWorkout}</Text>
-              </View>
             </View>
-            <View>
-              <Ionicons name="ellipsis-vertical-outline" size={25} />
+            <View style={styles.logHeaderText}>
+              <Text style={styles.workoutTitle}>{data?.selectedWorkout}</Text>
             </View>
           </View>
-
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-evenly",
-            }}
+          <TouchableOpacity
+            onPress={() => deleteLog(data.id)}
+            style={styles.deleteButton}
           >
-            <Text> Sets : {data?.setsPerformed}</Text>
-            <Text> Reps : {data?.repsPerformed}</Text>
+            <Ionicons name="trash-outline" size={22} color="#FF4444" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.logDetails}>
+          <View style={styles.detailItem}>
+            <Text style={styles.detailLabel}>Sets</Text>
+            <Text style={styles.detailValue}>{data?.setsPerformed}</Text>
           </View>
-        </TouchableOpacity>
-      </View>
-    );
-  };
+          <View style={styles.detailDivider} />
+          <View style={styles.detailItem}>
+            <Text style={styles.detailLabel}>Reps</Text>
+            <Text style={styles.detailValue}>{data?.repsPerformed}</Text>
+          </View>
+          <View style={styles.detailDivider} />
+          <View style={styles.detailItem}>
+            <Text style={styles.detailLabel}>Weight</Text>
+            <Text style={styles.detailValue}>{data?.weightUsed} kg</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
 
   const markedDatesArray = [
     {
       date: new Date(),
-      dots: [
-        {
-          color: "#000",
-          selectedColor: "#000",
-        },
-      ],
+      dots: [{ color: "#000", selectedColor: "#000" }],
     },
   ];
+
   return (
-    <SafeAreaView style={{ height: "100%" }}>
+    <SafeAreaView style={styles.container}>
       <DiaryEntryModal
         getAllWorkoutLogs={getAllWorkoutLogs}
         setIsModal={setModalVisible}
         modal={isModalVisible}
         clickedData={clickedData}
-        setClickedData={setclickedData}
+        setClickedData={setClickedData}
       />
-      <View>
-        <Text style={{ textAlign: "center", fontWeight: "bold", fontSize: 20 }}>
-          Diary Log
-        </Text>
-      </View>
+      <Text style={styles.title}>Diary Log</Text>
+      <CalendarStrip
+        dateNameStyle={{}}
+        dateNumberStyle={{}}
+        dayContainerStyle={{
+          height: 70,
+          backgroundColor: "lightblue",
+        }}
+        maxDate={new Date()}
+        selectedDate={dateTapped}
+        calendarHeaderPosition="below"
+        calendarHeaderStyle={{ textAlign: "left" }}
+        style={{ width: "100%", height: 100 }}
+        markedDates={markedDatesArray}
+        calendarAnimation={{ type: "sequence", duration: 1000 / 4 }}
+        onDateSelected={async (date: any) => {
+          setDateTapped(date.toDate());
+          markedDatesArray.push({
+            date: date.toDate(),
+            dots: [
+              {
+                color: "#000",
+                selectedColor: "#000",
+              },
+            ],
+          });
 
-      <View style={{ marginTop: 10 }}>
-        <CalendarStrip
-          dateNameStyle={{}}
-          dateNumberStyle={{}}
-          dayContainerStyle={{
-            height: 70,
-            backgroundColor: "lightblue",
-          }}
-          maxDate={new Date()}
-          selectedDate={dateTapped}
-          calendarHeaderPosition="below"
-          calendarHeaderStyle={{ textAlign: "left" }}
-          style={{ width: "100%", height: 100 }}
-          markedDates={markedDatesArray}
-          calendarAnimation={{ type: "sequence", duration: 1000 / 4 }}
-          onDateSelected={async (date) => {
-            setdateTapped(date.toDate());
-            markedDatesArray.push({
-              date: date.toDate(),
-              dots: [
-                {
-                  color: "#000",
-                  selectedColor: "#000",
-                },
-              ],
-            });
-
-            markedDatesArray.forEach((item) => {
-              console.log(item.date.toDateString());
-            });
-          }}
-        />
-      </View>
-      <Text style={{ textAlign: "center", marginTop: 5, fontWeight: "bold" }}>
-        {dateTapped.toDateString()}
-      </Text>
-      <View style={styles.horizontalLine} />
-
-      <View style={{ justifyContent: "center", alignItems: "center" }}>
-        <View
-          style={{
-            width: "60%",
-            // alignSelf: "center",
-            flexDirection: "row",
-            backgroundColor: "lightgray",
-            justifyContent: "space-evenly",
-
-            padding: 5,
-            borderRadius: 20,
-          }}
-        >
-          <TouchableOpacity
-            onPress={() => {
-              setsectionSelected("diary");
-            }}
-            style={{
-              backgroundColor:
-                sectionSelected == "diary" ? "white" : "transparent",
-              padding: 2,
-              borderRadius: 8,
-              paddingHorizontal: 4,
-            }}
-          >
-            <Text style={{ fontWeight: "bold" }}>Diary</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => {
-              setsectionSelected("workout");
-            }}
-            style={{
-              backgroundColor:
-                sectionSelected == "workout" ? "white" : "transparent",
-              padding: 2,
-              borderRadius: 8,
-              paddingHorizontal: 4,
-            }}
-          >
-            <Text style={{ fontWeight: "bold" }}>Workouts</Text>
-          </TouchableOpacity>
-        </View>
-        <ScrollView
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          style={{ width: "100%" }}
-        >
-          {userWorkoutLog &&
-            sectionSelected == "diary" &&
-            userWorkoutLog?.map((data, i) => {
-              if (data?.dateSelect == new Date(dateTapped).toDateString()) {
-                return <LogComponent data={data} key={i} />;
-              }
-            })}
-          {trainerWorkoutLog &&
-            sectionSelected == "workout" &&
-            trainerWorkoutLog?.map((data, i) => {
-              if (data?.dateSelect == new Date(dateTapped).toDateString()) {
-                return <LogComponent data={data} key={i} />;
-              }
-            })}
-          <View style={{ height: 100 }} />
-        </ScrollView>
-      </View>
-
-      <CustomFloatingButton
-        onClick={() => {
-          setModalVisible(true);
+          markedDatesArray.forEach((item) => {
+            console.log(item.date.toDateString());
+          });
         }}
       />
+
+      <Text style={styles.selectedDate}>{dateTapped.toDateString()}</Text>
+      <View style={styles.horizontalLine} />
+
+      <View style={styles.sectionContainer}>
+        <TouchableOpacity
+          onPress={() => setSectionSelected("diary")}
+          style={[
+            styles.sectionButton,
+            sectionSelected === "diary" && styles.sectionButtonActive,
+          ]}
+        >
+          <Text style={styles.sectionButtonText}>Diary</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setSectionSelected("workout")}
+          style={[
+            styles.sectionButton,
+            sectionSelected === "workout" && styles.sectionButtonActive,
+          ]}
+        >
+          <Text style={styles.sectionButtonText}>Workouts</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        style={styles.scrollView}
+      >
+        {sectionSelected === "diary" &&
+          userWorkoutLog
+            ?.filter(
+              (data) => data?.dateSelect === new Date(dateTapped).toDateString()
+            )
+            .sort((a, b) => {
+              if (!a.timestamp?.seconds) return 1;
+              if (!b.timestamp?.seconds) return -1;
+              // Compare Firebase timestamps (newest first)
+              return b.timestamp.seconds - a.timestamp.seconds;
+            })
+            .map((data, i) => <LogComponent data={data} key={i} />)}
+        {sectionSelected === "workout" &&
+          trainerWorkoutLog.map((data, i) => (
+            <CustomCard
+              key={i}
+              title={data?.planName}
+              description={
+                "Your trainer has added a 12 Week Workout plan for you"
+              }
+              onPress={function (): void {
+                navigation.navigate(screens.WorkoutPlanScreen, {
+                  planDetails: data,
+                });
+              }}
+              navigationText="View Workout Plan"
+            />
+          ))}
+        <View style={styles.scrollViewBottom} />
+      </ScrollView>
+
+      {sectionSelected == "diary" && (
+        <CustomFloatingButton onClick={() => setModalVisible(true)} />
+      )}
     </SafeAreaView>
   );
 };
@@ -297,11 +270,153 @@ const DiaryLog = ({ navigation }) => {
 export default DiaryLog;
 
 const styles = StyleSheet.create({
-  horizontalLine: { backgroundColor: "#D0D5DD", height: 2, marginVertical: 20 },
-  verticalLine: {
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  title: {
+    textAlign: "center",
+    fontWeight: "bold",
+    fontSize: 20,
+    marginVertical: 10,
+  },
+  calendarStrip: {
+    height: 100,
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+  calendarHeader: {
+    color: "black",
+  },
+  calendarDateNumber: {
+    color: "black",
+  },
+  calendarDateName: {
+    color: "black",
+  },
+  calendarHighlightDate: {
+    color: "white",
+  },
+  calendarDisabledDate: {
+    color: "gray",
+  },
+  calendarIconContainer: {
+    flex: 0.1,
+  },
+  selectedDate: {
+    textAlign: "center",
+    marginTop: 5,
+    fontWeight: "bold",
+  },
+  horizontalLine: {
     backgroundColor: "#D0D5DD",
-    height: "40%",
+    height: 2,
     marginVertical: 20,
-    width: 2,
+  },
+  sectionContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    backgroundColor: "lightgray",
+    borderRadius: 20,
+    padding: 5,
+    marginHorizontal: 20,
+  },
+  sectionButton: {
+    paddingVertical: 5,
+    paddingHorizontal: 15,
+    borderRadius: 15,
+  },
+  sectionButtonActive: {
+    backgroundColor: "white",
+  },
+  sectionButtonText: {
+    fontWeight: "bold",
+  },
+  scrollView: {
+    width: "100%",
+  },
+  scrollViewBottom: {
+    height: 100,
+  },
+  logContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    marginTop: 20,
+  },
+  logTouchable: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  logHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  logHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  iconContainer: {
+    backgroundColor: "#F5F7FF",
+    padding: 8,
+    borderRadius: 8,
+  },
+  logIcon: {
+    height: 24,
+    width: 24,
+    resizeMode: "contain",
+  },
+  logHeaderText: {
+    marginLeft: 12,
+  },
+  workoutTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1A1A1A",
+    marginBottom: 4,
+  },
+  timeText: {
+    fontSize: 12,
+    color: "#666666",
+  },
+  deleteButton: {
+    padding: 8,
+  },
+  logDetails: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F8F9FA",
+    borderRadius: 8,
+    padding: 12,
+  },
+  detailItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: "#666666",
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1A1A1A",
+  },
+  detailDivider: {
+    width: 1,
+    height: "100%",
+    backgroundColor: "#E5E5E5",
   },
 });

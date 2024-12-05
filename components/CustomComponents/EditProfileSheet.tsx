@@ -1,3 +1,4 @@
+import React, { useContext, useEffect, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -6,228 +7,261 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Platform,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
-import React, { useContext, useEffect, useState } from "react";
 import Modal from "react-native-modal";
-import { AppContext } from "../../context/AppContext";
 import * as ImagePicker from "expo-image-picker";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { getBlobFroUri, getRandomInt } from "../../utils/constants";
+import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { app, db, storage, auth } from "../../utils/firebase";
+import { auth, db, storage } from "../../utils/firebase";
+import { AppContext } from "../../context/AppContext";
 import CustomIcon from "../CustomIcon";
 import CustomInput from "../CustomInput";
 import CustomButton from "../CustomButton";
 
-const EditProfileSheet = ({ modal, setModal }) => {
-  const { appUser, getUser, setappUser } = useContext(AppContext);
+const EditProfileSheet = ({ isVisible, onClose }) => {
+  const { userData, refreshUserData, setuserData } = useContext(AppContext);
 
-  const [image, setImage] = useState(appUser?.photo);
-  const [userName, setuserName] = useState("");
-  const [userHeight, setuserHeight] = useState("");
-  const [userWeight, setuserWeight] = useState("");
-  const [userAge, setuserAge] = useState("");
+  const [formData, setFormData] = useState({
+    photo: userData?.photo || null,
+    name: "",
+    height: "",
+    weight: "",
+    age: "",
+  });
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      if (auth.currentUser) {
-        const userDoc = await getDoc(doc(db, "users", auth.currentUser.email));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          setuserName(userData.name || "");
-          setuserHeight(
-            userData.userHealthData?.height
-              ? `${userData.userHealthData.height} cm`
-              : ""
-          );
-          setuserWeight(
-            userData.userHealthData?.weight
-              ? `${userData.userHealthData.weight} kg`
-              : ""
-          );
-          setuserAge(userData.age ? userData.age.toString() : "");
-          setImage(userData.photo || null);
-        }
-      }
-    };
+    requestImagePickerPermissions();
     fetchUserData();
   }, []);
 
-  console.log(appUser);
-  const updateUserInfo = async () => {
-    const updates = {};
-
-    if (appUser?.userHealthData?.height !== userHeight) {
-      updates["userHealthData.height"] = parseInt(userHeight);
+  const requestImagePickerPermissions = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission required", "Please grant media library access.");
     }
+  };
 
-    if (appUser?.userHealthData?.weight !== userWeight) {
-      updates["userHealthData.weight"] = parseInt(userWeight);
-    }
-
-    if (appUser?.name !== userName) {
-      updates.name = userName;
-    }
-
-    if (appUser?.age !== userAge) {
-      updates.age = parseInt(userAge);
-    }
-
-    if (Object.keys(updates).length > 0) {
-      await updateDoc(doc(db, "users", auth.currentUser.email), updates).then(
-        async () => {
-          await getUser().then(() => {
-            setModal(false);
+  const fetchUserData = async () => {
+    try {
+      if (auth.currentUser) {
+        const userDoc = await getDoc(doc(db, "users", auth.currentUser.email));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setFormData({
+            photo: data.photo || null,
+            name: data.name || "",
+            height: data.userHealthData?.height?.toString() || "",
+            weight: data.userHealthData?.weight?.toString() || "",
+            age: data.age?.toString() || "",
           });
         }
-      );
-    }
-
-    if (image && image !== appUser?.photo) {
-      const imageRef = ref(
-        storage,
-        `users/profileImages/${auth.currentUser.email + getRandomInt().toString()}`
-      );
-
-      const imageBlob = await getBlobFroUri(image);
-      if (!imageBlob) {
-        throw new Error("Failed to convert image URI to Blob.");
       }
-
-      await uploadBytes(imageRef, imageBlob);
-      const downloadURL = await getDownloadURL(imageRef);
-
-      await updateDoc(doc(db, "users", auth.currentUser.email), {
-        photo: downloadURL,
-      });
+    } catch (error) {
+      console.error("Error fetching user data:", error);
     }
+  };
 
-    await getUser();
-    setModal(false);
+  const handleInputChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const pickImage = async () => {
     try {
-      let result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 1,
+        quality: 0.1,
       });
 
       if (!result.canceled) {
-        setImage(result.assets[0].uri);
+        setIsUploading(true);
+        const downloadUrl = await uploadImageAsync(result.assets[0].uri);
+        handleInputChange("photo", downloadUrl);
+        setIsUploading(false);
       }
     } catch (error) {
-      console.log("From Photo Change", error);
+      console.error("Error picking image:", error);
+      setIsUploading(false);
     }
   };
-  return (
-    <Modal
-      onBackdropPress={() => setModal(false)}
-      style={{ margin: 0 }}
-      isVisible={modal}
-    >
-      <ScrollView
-        style={{
-          backgroundColor: "white",
-          height: "90%",
-          position: "absolute",
-          width: "100%",
-          bottom: 0,
-        }}
-      >
-        <CustomIcon
-          name={"close-outline"}
-          onClick={() => setModal(false)}
-          size={30}
-          styles={{ marginTop: 15 }}
-        />
-        <View style={{ width: "100%", alignItems: "center" }}>
-          <TouchableOpacity>
-            {image ? (
-              <Image
-                style={{
-                  height: 100,
-                  width: 100,
-                  borderRadius: 35,
-                }}
-                source={{ uri: image }}
-              />
-            ) : (
-              <View
-                style={{
-                  alignItems: "center",
-                  borderWidth: 2,
-                  height: 100,
-                  width: 100,
-                  justifyContent: "center",
-                  borderRadius: 50,
-                }}
-              ></View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={async () => {
-              await pickImage();
-            }}
-          >
-            <Text style={{ marginTop: 10, color: "blue" }}>
-              Change Profile Picture
-            </Text>
-          </TouchableOpacity>
-          <KeyboardAvoidingView behavior="padding" style={{ width: "100%" }}>
-            <View style={{ width: "100%" }}>
-              <CustomInput
-                label={"Name"}
-                placeholder={"Enter your name"}
-                value={userName}
-                onChangeText={setuserName}
-              />
-              <View
-                style={{
-                  flexDirection: "row",
-                  width: "100%",
-                  alignSelf: "center",
-                }}
-              >
-                <CustomInput
-                  label={"Height"}
-                  placeholder={"Current Height"}
-                  value={userHeight}
-                  onChangeText={setuserHeight}
-                  styles={{ minWidth: 150 }}
-                />
-                <CustomInput
-                  label={"Weight"}
-                  placeholder={"Current weight"}
-                  value={userWeight}
-                  onChangeText={setuserWeight}
-                  styles={{ minWidth: 150 }}
-                />
-              </View>
-              <View style={{ width: "35%" }}>
-                <CustomInput
-                  label={"Age"}
-                  placeholder={"Current Age"}
-                  value={userAge}
-                  onChangeText={setuserAge}
-                />
-              </View>
 
+  const uploadImageAsync = async (uri) => {
+    const res = await fetch(uri);
+    const blob = await res.blob();
+    const storageRef = ref(
+      storage,
+      `users/${auth.currentUser.uid}/${new Date().toISOString()}`
+    );
+    const snapshot = await uploadBytesResumable(storageRef, blob);
+    const url = await getDownloadURL(snapshot.ref);
+    return url;
+  };
+
+  const validateInput = () => {
+    const { name, height, weight, age } = formData;
+    if (!name || !height || !weight || !age) {
+      Alert.alert("Incomplete Data", "Please fill out all fields.");
+      return false;
+    }
+    return true;
+  };
+
+  const updateUserInfo = async () => {
+    if (!validateInput()) return;
+
+    try {
+      const updates = {
+        name: formData.name,
+        "userHealthData.height": parseInt(formData.height),
+        "userHealthData.weight": parseInt(formData.weight),
+        age: parseInt(formData.age),
+        photo: formData.photo,
+      };
+
+      await updateDoc(doc(db, "users", auth.currentUser.email), updates);
+
+      setuserData((prevData) => ({
+        ...prevData,
+        displayName: formData.name,
+        photo: formData.photo,
+        userHealthData: {
+          ...prevData,
+          height: parseInt(formData.height),
+          weight: parseInt(formData.weight),
+        },
+        age: parseInt(formData.age),
+      }));
+      await fetchUserData();
+      onClose();
+      Alert.alert("Success", "Profile updated successfully");
+    } catch (error) {
+      console.error("Error updating user info:", error);
+      Alert.alert(
+        "Update Failed",
+        "Could not update profile. Please try again."
+      );
+    }
+  };
+
+  return (
+    <Modal isVisible={isVisible} onBackdropPress={onClose} style={styles.modal}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.container}
+      >
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollView}
+        >
+          <CustomIcon
+            name="close-outline"
+            onClick={onClose}
+            size={30}
+            styles={styles.closeIcon}
+          />
+          <View style={styles.content}>
+            <TouchableOpacity onPress={pickImage} disabled={isUploading}>
+              {isUploading ? (
+                <View style={styles.loaderContainer}>
+                  <ActivityIndicator size="large" color="#0000ff" />
+                </View>
+              ) : formData.photo ? (
+                <Image
+                  source={{ uri: formData.photo }}
+                  style={styles.profileImage}
+                />
+              ) : (
+                <View style={styles.emptyImage}>
+                  <CustomIcon
+                    name="person-outline"
+                    size={30}
+                    onClick={pickImage}
+                    styles={false}
+                  />
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={pickImage} disabled={isUploading}>
+              <Text style={styles.changePhotoText}>
+                {isUploading ? "Uploading..." : "Change Profile Picture"}
+              </Text>
+            </TouchableOpacity>
+            <View style={styles.inputContainer}>
+              <CustomInput
+                label="Name"
+                placeholder="Enter your name"
+                value={formData.name}
+                onChangeText={(text) => handleInputChange("name", text)}
+              />
+              <View style={styles.row}>
+                <CustomInput
+                  label="Height (cm)"
+                  placeholder="Enter height"
+                  value={formData.height}
+                  onChangeText={(text) => handleInputChange("height", text)}
+                  type="numeric"
+                  styles={styles.halfInput}
+                />
+                <CustomInput
+                  label="Weight (kg)"
+                  placeholder="Enter weight"
+                  value={formData.weight}
+                  onChangeText={(text) => handleInputChange("weight", text)}
+                  type="numeric"
+                  styles={styles.halfInput}
+                />
+              </View>
+              <CustomInput
+                label="Age"
+                placeholder="Enter age"
+                value={formData.age}
+                onChangeText={(text) => handleInputChange("age", text)}
+                type="numeric"
+              />
               <CustomButton
+                title="Save Changes"
                 onClick={updateUserInfo}
-                title={"Save Changes"}
-                textColor={"white"}
+                textColor="white"
               />
             </View>
-          </KeyboardAvoidingView>
-        </View>
-      </ScrollView>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
 
-export default EditProfileSheet;
+const styles = StyleSheet.create({
+  modal: { margin: 0, flex: 1 },
+  container: { flex: 1, backgroundColor: "white", paddingTop: 60 },
+  scrollView: { paddingBottom: 20 },
+  closeIcon: { marginTop: 15 },
+  content: { alignItems: "center" },
+  profileImage: { height: 100, width: 100, borderRadius: 50 },
+  emptyImage: {
+    borderRadius: 50,
+    borderWidth: 2,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 18,
+  },
+  loaderContainer: {
+    height: 100,
+    width: 100,
+    borderRadius: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(200, 200, 200, 0.5)",
+  },
+  changePhotoText: { marginTop: 10, color: "blue" },
+  inputContainer: { width: "100%" },
+  row: { flexDirection: "row", justifyContent: "space-between" },
+  halfInput: { width: "48%" },
+});
 
-const styles = StyleSheet.create({});
+export default EditProfileSheet;

@@ -104,7 +104,7 @@ const Post = ({ navigation }) => {
         <CustomPost /> */}
         {allPosts &&
           allPosts?.map((data, i) => {
-            return <CustomPost data={data} key={i} />;
+            return <CustomPost onRefresh={getAllPosts} data={data} key={i} />;
           })}
       </ScrollView>
     </SafeAreaView>

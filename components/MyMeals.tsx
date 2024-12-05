@@ -85,49 +85,60 @@ const MyMeals = () => {
 
   return (
     <ScrollView>
-      <View>
-        <Text
-          style={{
-            fontSize: 18,
-            marginTop: 30,
-            marginLeft: 20,
-            fontWeight: "bold",
-          }}
-        >
-          Your Macros Target
-        </Text>
-
-        <View
-          style={{
-            alignSelf: "center",
-            width: "80%",
-            marginTop: 9,
-            borderWidth: 0.5,
-            borderColor: "gray",
-            padding: 10,
-            borderRadius: 10,
-          }}
-        >
-          <View
+      {(proteinContent || carbsContent || fatsContent) && (
+        <View>
+          <Text
             style={{
-              flexDirection: "row",
-              justifyContent: "space-evenly",
-              width: "100%",
+              fontSize: 18,
+              marginTop: 30,
+              marginLeft: 20,
+              fontWeight: "bold",
             }}
           >
-            <MacrosBox text={"Protein"} data={proteinContent} />
-            <View style={styles.verticalLine} />
-            <MacrosBox text={"Carbs"} data={carbsContent} />
-            <View style={styles.verticalLine} />
+            Your Macros Target
+          </Text>
 
-            <MacrosBox text={"Fats"} data={fatsContent} />
+          <View
+            style={{
+              alignSelf: "center",
+              width: "80%",
+              marginTop: 9,
+              borderWidth: 0.5,
+              borderColor: "gray",
+              padding: 10,
+              borderRadius: 10,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-evenly",
+                width: "100%",
+              }}
+            >
+              {proteinContent && (
+                <MacrosBox text={"Protein"} data={proteinContent} />
+              )}
+              {carbsContent && (
+                <>
+                  <View style={styles.verticalLine} />
+                  <MacrosBox text={"Carbs"} data={carbsContent} />
+                </>
+              )}
+              {fatsContent && (
+                <>
+                  <View style={styles.verticalLine} />
+                  <MacrosBox text={"Fats"} data={fatsContent} />
+                </>
+              )}
+            </View>
           </View>
         </View>
-        <FoodBox mealType={"Breakfast"} data={breakfast_recipes} />
-        <FoodBox mealType={"Lunch"} data={lunch_recipes} />
-        <FoodBox mealType={"Dinner"} data={dinner_recipes} />
-        <View style={{ height: 20 }} />
-      </View>
+      )}
+      <FoodBox mealType={"Breakfast"} data={breakfast_recipes} />
+      <FoodBox mealType={"Lunch"} data={lunch_recipes} />
+      <FoodBox mealType={"Dinner"} data={dinner_recipes} />
+      <View style={{ height: 20 }} />
     </ScrollView>
   );
 };

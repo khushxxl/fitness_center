@@ -5,6 +5,7 @@ import {
   View,
   ActivityIndicator,
   FlatList,
+  Alert,
 } from "react-native";
 import React, { useContext, useEffect, useState } from "react";
 import { Image } from "react-native";
@@ -18,12 +19,13 @@ import {
   updateDoc,
   onSnapshot,
   getDoc,
+  deleteDoc,
 } from "firebase/firestore";
 import { db } from "../utils/firebase";
 import CustomInput from "./CustomInput";
 import { getAuth } from "firebase/auth";
 
-const CustomPost = ({ data }) => {
+const CustomPost = ({ data, onRefresh }) => {
   const [isLiked, setIsLiked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
   const { appUser } = useContext(AppContext);
@@ -32,9 +34,26 @@ const CustomPost = ({ data }) => {
   const [comments, setComments] = useState(data?.comments || []);
   const [currentUser, setCurrentUser] = useState(null);
 
+  const [uploadedBy, setuploadedBy] = useState<any>();
+
+  const fetchUserData = async () => {
+    try {
+      if (auth.currentUser) {
+        const userDoc = await getDoc(doc(db, "users", data?.uploadedBy?.email));
+        if (userDoc.exists()) {
+          const data: any = userDoc.data();
+          setuploadedBy(data);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  };
+
   const auth = getAuth();
 
   useEffect(() => {
+    fetchUserData();
     const fetchUser = async () => {
       if (auth.currentUser) {
         const userDocRef = doc(db, "users", auth.currentUser.email);
@@ -97,6 +116,31 @@ const CustomPost = ({ data }) => {
     });
   };
 
+  const deletePost = async () => {
+    Alert.alert("Delete Post", "Are you sure you want to delete this post?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Delete",
+        onPress: async () => {
+          try {
+            await deleteDoc(doc(db, "posts", data?.id));
+            console.log("Post deleted successfully");
+            if (onRefresh) {
+              onRefresh(data?.id);
+            }
+          } catch (error) {
+            console.error("Error deleting post:", error);
+            Alert.alert("Error", "Failed to delete the post");
+          }
+        },
+        style: "destructive",
+      },
+    ]);
+  };
+
   useEffect(() => {
     isLikedChecker();
   }, [data?.likedBy, auth.currentUser?.email]);
@@ -142,15 +186,27 @@ const CustomPost = ({ data }) => {
 
       <View style={{ marginTop: 10 }}>
         <View
-          style={{ flexDirection: "row", alignItems: "center", marginLeft: 10 }}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginLeft: 10,
+            justifyContent: "space-between",
+          }}
         >
-          <Image
-            style={{ height: 50, width: 50, borderRadius: 25 }}
-            source={{ uri: data?.uploadedBy?.photo }}
-          />
-          <Text style={{ marginLeft: 10, fontWeight: "bold" }}>
-            {data?.uploadedBy?.name}
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Image
+              style={{ height: 50, width: 50, borderRadius: 25 }}
+              source={{ uri: uploadedBy?.photo }}
+            />
+            <Text style={{ marginLeft: 10, fontWeight: "bold" }}>
+              {uploadedBy?.name}
+            </Text>
+          </View>
+          {auth.currentUser?.email === data?.uploadedBy?.email && (
+            <TouchableOpacity onPress={deletePost} style={{ marginRight: 10 }}>
+              <Icon name="trash" size={20} color="red" />
+            </TouchableOpacity>
+          )}
         </View>
         <Text style={{ marginHorizontal: 10, marginTop: 10 }}>
           {data?.content}
@@ -197,14 +253,14 @@ const CustomPost = ({ data }) => {
           <Icon
             color={isLiked ? "blue" : "gray"}
             name={isLiked ? "thumbs-up" : "thumbs-o-up"}
-            size={30}
+            size={25}
           />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setisCommenting(!isCommenting)}>
-          <Icon color={"gray"} name="comments-o" size={30} />
+          <Icon color={"gray"} name="comments-o" size={25} />
         </TouchableOpacity>
         <TouchableOpacity>
-          <Icon color={"gray"} name="share" size={30} />
+          <Icon color={"gray"} name="share" size={25} />
         </TouchableOpacity>
       </View>
       {isCommenting && (
