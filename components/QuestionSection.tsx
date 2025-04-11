@@ -4,9 +4,9 @@ import CustomInput from "./CustomInput";
 
 const QuestionSection = ({
   question,
-  allOptions,
-  setSelectedOption,
-  option,
+  options,
+  setter,
+  value,
   textBox,
   multiLine,
   label,
@@ -14,23 +14,20 @@ const QuestionSection = ({
   keyboardType,
 }: {
   question: string;
-  allOptions?: string[];
-  setSelectedOption: Function;
-  option: any;
+  options?: string[];
+  setter: Function;
+  value: any;
   textBox?: boolean;
   multiLine?: boolean;
   label?: string;
   placeholder?: string;
   keyboardType?: string;
 }) => {
-  const [optionSelected, setoptionSelected] = useState("");
-
-  //   #0086C9
   const OptionComponent = ({ title }) => {
     return (
       <TouchableOpacity
         onPress={() => {
-          setSelectedOption(title);
+          setter(title);
         }}
         style={{
           borderWidth: 1,
@@ -38,13 +35,13 @@ const QuestionSection = ({
           borderRadius: 10,
           padding: 15,
           marginTop: 20,
-          backgroundColor: option == title ? "purple" : "white",
+          backgroundColor: value === title ? "#0086C9" : "white",
         }}
       >
         <Text
           style={{
             textAlign: "center",
-            color: option == title ? "white" : "black",
+            color: value === title ? "white" : "black",
             fontWeight: "bold",
           }}
         >
@@ -59,18 +56,18 @@ const QuestionSection = ({
       <Text style={{ marginTop: 20, fontSize: 18, fontWeight: "bold" }}>
         {question}
       </Text>
-      {allOptions &&
-        allOptions.length > 0 &&
-        allOptions.map((option, i) => {
+      {options &&
+        options.length > 0 &&
+        options.map((option, i) => {
           return <OptionComponent key={i} title={option} />;
         })}
       {textBox && (
-        <View style={{ marginTop: -30 }}>
+        <View style={{ marginTop: 20 }}>
           <CustomInput
             label={label}
             placeholder={placeholder}
-            value={option}
-            onChangeText={setSelectedOption}
+            value={value}
+            onChangeText={setter}
             multiLine={multiLine}
             type={keyboardType}
             autofocus={true}

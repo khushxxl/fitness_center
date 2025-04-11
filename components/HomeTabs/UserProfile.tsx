@@ -19,7 +19,7 @@ import { useStripe } from "@stripe/stripe-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import EditProfileSheet from "../CustomComponents/EditProfileSheet";
 import CustomIcon from "../CustomIcon";
-import { getAuth, signOut } from "firebase/auth";
+import { deleteUser, getAuth, signOut } from "firebase/auth";
 import { ActivityIndicator } from "react-native";
 
 const UserProfile = ({ navigation, showUserProfile, setShowUserProfile }) => {
@@ -137,12 +137,30 @@ const UserProfile = ({ navigation, showUserProfile, setShowUserProfile }) => {
         {
           text: "OK",
           onPress: async () => {
-            await deleteDoc(doc(db, "users", auth.currentUser?.email)).then(
-              async () => {
-                await auth.currentUser?.delete();
+            try {
+              if (auth.currentUser?.email) {
+                // First delete the user document from Firestore
+                await deleteDoc(doc(db, "users", auth.currentUser.email));
+
+                // Then delete the user authentication account
+                await deleteUser(auth.currentUser);
+
+                // Finally sign out
                 await signOutUser();
+              } else {
+                console.error("No authenticated user found");
+                Alert.alert(
+                  "Error",
+                  "Unable to delete account. Please try again later."
+                );
               }
-            );
+            } catch (error) {
+              console.error("Error deleting account:", error);
+              Alert.alert(
+                "Error",
+                "Failed to delete account. Please try again later."
+              );
+            }
           },
         },
       ],
@@ -233,14 +251,14 @@ const UserProfile = ({ navigation, showUserProfile, setShowUserProfile }) => {
           onClick={deleteAccount}
         />
 
-        {(userData?.gender ||
+        {(!userData?.gender ||
           !userData?.age ||
           !userData?.userHealthData?.height ||
           !userData?.userHealthData?.weight ||
           !userData?.trainingGoal ||
           !userData?.sleepHours ||
           !userData?.trainingHours ||
-          !userData?.allergies) && (
+          userData?.allergies) && (
           <TouchableOpacity
             style={{
               padding: 15,

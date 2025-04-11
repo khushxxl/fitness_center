@@ -15,7 +15,7 @@ import { customAppStyles } from "../utils/styles";
 import CustomPost from "./CustomPost";
 import AddPostModal from "./AddPostModal";
 import Icon from "react-native-vector-icons/FontAwesome";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { db } from "../utils/firebase";
 import { AppContext } from "../context/AppContext";
 
@@ -24,24 +24,48 @@ const Post = ({ navigation }) => {
   const [showAddPostModal, setshowAddPostModal] = useState(false);
   const [postLoading, setpostLoading] = useState(false);
   const { allPosts, setallPosts } = useContext(AppContext);
-  // const [allPosts, setallPosts] = useState([]);
+  const [imagesLoaded, setImagesLoaded] = useState(false);
+
+  const preloadImages = async (posts) => {
+    try {
+      const imagePromises = posts.map((post) => {
+        if (post.media) {
+          return Image.prefetch(post.media);
+        }
+        if (post.uploadedBy?.photo) {
+          return Image.prefetch(post.uploadedBy.photo);
+        }
+        return Promise.resolve();
+      });
+
+      await Promise.all(imagePromises);
+      setImagesLoaded(true);
+    } catch (error) {
+      console.error("Error preloading images:", error);
+      setImagesLoaded(true); // Set to true even on error to not block rendering
+    }
+  };
 
   const getAllPosts = async () => {
     setpostLoading(true);
     const allPostsInline: any = [];
-    const querySnapshot = await getDocs(collection(db, "posts"));
+    const postsQuery = query(
+      collection(db, "posts"),
+      orderBy("timestamp", "desc")
+    );
+    const querySnapshot = await getDocs(postsQuery);
     querySnapshot.forEach((doc) => {
       allPostsInline.push({ id: doc.id, ...doc.data() });
-      console.log(doc.id, " => ", doc.data());
     });
     setallPosts(allPostsInline);
-    console.log(allPosts);
+    await preloadImages(allPostsInline);
     setpostLoading(false);
   };
 
-  // useEffect(() => {
-  //   getAllPosts();
-  // }, []);
+  useEffect(() => {
+    getAllPosts();
+  }, []);
+
   const [refreshing, setRefreshing] = React.useState(false);
 
   const onRefresh = React.useCallback(() => {
@@ -52,13 +76,14 @@ const Post = ({ navigation }) => {
     }, 2000);
   }, []);
 
-  if (postLoading) {
+  if (postLoading || !imagesLoaded) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator size={"large"} />
       </View>
     );
   }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
       <AddPostModal
@@ -99,9 +124,6 @@ const Post = ({ navigation }) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* <CustomPost />
-        <CustomPost />
-        <CustomPost /> */}
         {allPosts &&
           allPosts?.map((data, i) => {
             return <CustomPost onRefresh={getAllPosts} data={data} key={i} />;

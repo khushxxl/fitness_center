@@ -18,7 +18,7 @@ const WorkoutPlan = ({ route, navigation }) => {
       "Friday",
       "Saturday",
     ];
-    return days.indexOf(day.split(",")[0]); // In case dayStr includes comma
+    return days?.indexOf(day?.split(",")[0]); // In case dayStr includes comma
   };
 
   console.log(planDetails);

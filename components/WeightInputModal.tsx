@@ -27,7 +27,7 @@ const WeightInputModal = ({
   const [imageCollection, setImageCollection] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const { appUser, getUser } = useContext(AppContext);
+  const { appUser } = useContext(AppContext);
 
   const pickImage = async () => {
     try {
@@ -83,7 +83,7 @@ const WeightInputModal = ({
         "userHealthData.weightRecords": arrayUnion(newWeightRecord),
       });
 
-      await getUser(); // Refresh user data
+      // await getUser(); // Refresh user data
       setuserWeights((prevWeights) => [...prevWeights, newWeightRecord]);
 
       // Reset state

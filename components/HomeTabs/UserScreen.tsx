@@ -8,15 +8,15 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import { db } from "../../utils/firebase";
 import { AppContext } from "../../context/AppContext";
 import { getAuth } from "firebase/auth";
 import HomeHeader from "../HomeHeader";
 import EditProfileSheet from "../CustomComponents/EditProfileSheet";
-import { screens } from "../../utils/constants";
+import { screens, Trainer_Email } from "../../utils/constants";
 import UserProfile from "./UserProfile";
 import { Link } from "@react-navigation/native";
 
@@ -24,6 +24,7 @@ const UserScreen = ({ navigation }) => {
   const [showProfileModal, setShowProfileModal] = React.useState(false);
   const { promoSections, setpromoSections } = useContext(AppContext);
   const auth = getAuth();
+
 
   const HomeCard = ({ cardTitle, imageURL, link }) => (
     <TouchableOpacity

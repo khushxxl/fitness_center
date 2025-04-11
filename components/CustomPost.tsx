@@ -33,24 +33,21 @@ const CustomPost = ({ data, onRefresh }) => {
   const [comment, setcomment] = useState("");
   const [comments, setComments] = useState(data?.comments || []);
   const [currentUser, setCurrentUser] = useState(null);
-
   const [uploadedBy, setuploadedBy] = useState<any>();
+  const auth = getAuth();
 
   const fetchUserData = async () => {
     try {
       if (auth.currentUser) {
         const userDoc = await getDoc(doc(db, "users", data?.uploadedBy?.email));
         if (userDoc.exists()) {
-          const data: any = userDoc.data();
-          setuploadedBy(data);
+          setuploadedBy(userDoc.data());
         }
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
     }
   };
-
-  const auth = getAuth();
 
   useEffect(() => {
     fetchUserData();
@@ -66,83 +63,12 @@ const CustomPost = ({ data, onRefresh }) => {
     fetchUser();
   }, [auth.currentUser]);
 
-  const isLikedChecker = () => {
+  useEffect(() => {
     if (data?.likedBy?.includes(auth.currentUser?.email)) {
       setIsLiked(true);
     } else {
       setIsLiked(false);
     }
-  };
-
-  const likePost = async () => {
-    const postRef = doc(db, "posts", data?.id);
-
-    const newIsLiked = !isLiked;
-    setIsLiked(newIsLiked);
-
-    await updateDoc(postRef, {
-      likedBy: newIsLiked
-        ? arrayUnion(auth.currentUser?.email)
-        : arrayRemove(auth.currentUser?.email),
-    }).then(() => {
-      console.log(newIsLiked ? "Post liked" : "Post unliked");
-    });
-  };
-
-  const addComment = async () => {
-    const postRef = doc(db, "posts", data?.id);
-    await updateDoc(postRef, {
-      comments: arrayUnion({
-        id: Date.now().toString(),
-        comment: comment,
-        doneBy: auth.currentUser?.email,
-        userPhoto: currentUser?.photo,
-        userName: currentUser?.name,
-        timestamp: new Date().toISOString(),
-      }),
-    }).then(() => {
-      setcomment("");
-      console.log("comment added");
-    });
-  };
-
-  const deleteComment = async (commentId) => {
-    const postRef = doc(db, "posts", data?.id);
-    const updatedComments = comments.filter((c) => c.id !== commentId);
-    await updateDoc(postRef, {
-      comments: updatedComments,
-    }).then(() => {
-      console.log("comment deleted");
-    });
-  };
-
-  const deletePost = async () => {
-    Alert.alert("Delete Post", "Are you sure you want to delete this post?", [
-      {
-        text: "Cancel",
-        style: "cancel",
-      },
-      {
-        text: "Delete",
-        onPress: async () => {
-          try {
-            await deleteDoc(doc(db, "posts", data?.id));
-            console.log("Post deleted successfully");
-            if (onRefresh) {
-              onRefresh(data?.id);
-            }
-          } catch (error) {
-            console.error("Error deleting post:", error);
-            Alert.alert("Error", "Failed to delete the post");
-          }
-        },
-        style: "destructive",
-      },
-    ]);
-  };
-
-  useEffect(() => {
-    isLikedChecker();
   }, [data?.likedBy, auth.currentUser?.email]);
 
   useEffect(() => {
@@ -152,141 +78,177 @@ const CustomPost = ({ data, onRefresh }) => {
         setComments(doc.data().comments || []);
       }
     });
-
-    return () => {
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, [data?.id]);
 
-  const handleImageLoad = () => {
-    setIsLoading(false);
+  const likePost = async () => {
+    const postRef = doc(db, "posts", data?.id);
+    const newIsLiked = !isLiked;
+    setIsLiked(newIsLiked);
+
+    await updateDoc(postRef, {
+      likedBy: newIsLiked
+        ? arrayUnion(auth.currentUser?.email)
+        : arrayRemove(auth.currentUser?.email),
+    });
   };
 
-  const renderComment = ({ item }) => {
-    console.log();
-    return (
-      <View style={styles.commentContainer}>
-        <View style={styles.commentContent}>
-          <Text>{item.comment}</Text>
+  const addComment = async () => {
+    if (!comment.trim()) return;
+
+    const postRef = doc(db, "posts", data?.id);
+    await updateDoc(postRef, {
+      comments: arrayUnion({
+        id: Date.now().toString(),
+        comment: comment.trim(),
+        doneBy: auth.currentUser?.email,
+        userPhoto: currentUser?.photo,
+        userName: currentUser?.name,
+        timestamp: new Date().toISOString(),
+      }),
+    });
+    setcomment("");
+  };
+
+  const deleteComment = async (commentId) => {
+    const postRef = doc(db, "posts", data?.id);
+    const updatedComments = comments.filter((c) => c.id !== commentId);
+    await updateDoc(postRef, { comments: updatedComments });
+  };
+
+  const deletePost = async () => {
+    Alert.alert("Delete Post", "Are you sure you want to delete this post?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteDoc(doc(db, "posts", data?.id));
+            onRefresh?.(data?.id);
+          } catch (error) {
+            console.error("Error deleting post:", error);
+            Alert.alert("Error", "Failed to delete the post");
+          }
+        },
+      },
+    ]);
+  };
+
+  const renderComment = ({ item }) => (
+    <View style={styles.commentContainer}>
+      <View style={styles.commentContent}>
+        <View style={styles.commentHeader}>
+          <Image
+            source={{ uri: item.userPhoto }}
+            style={styles.commentUserPhoto}
+          />
+          <Text style={styles.commentUserName}>{item.userName}</Text>
         </View>
-        {item.doneBy === auth.currentUser?.email && (
+        <Text style={styles.commentText}>{item.comment}</Text>
+      </View>
+      {item.doneBy === auth.currentUser?.email && (
+        <TouchableOpacity
+          onPress={() => deleteComment(item.id)}
+          style={styles.deleteButton}
+        >
+          <Icon name="trash" size={18} color="#FF4444" />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.divider} />
+
+      <View style={styles.postHeader}>
+        <View style={styles.userInfo}>
+          <Image style={styles.userPhoto} source={{ uri: uploadedBy?.photo }} />
+          <Text style={styles.userName}>{uploadedBy?.name}</Text>
+        </View>
+
+        {auth.currentUser?.email === data?.uploadedBy?.email && (
           <TouchableOpacity
-            onPress={() => deleteComment(item.id)}
-            style={styles.deleteButton}
+            onPress={deletePost}
+            style={styles.deletePostButton}
           >
-            <Icon name="trash" size={20} color="red" />
+            <Icon name="trash" size={20} color="#FF4444" />
           </TouchableOpacity>
         )}
       </View>
-    );
-  };
-  return (
-    <View>
-      <View style={customAppStyles.horizontalLine} />
 
-      <View style={{ marginTop: 10 }}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            marginLeft: 10,
-            justifyContent: "space-between",
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Image
-              style={{ height: 50, width: 50, borderRadius: 25 }}
-              source={{ uri: uploadedBy?.photo }}
-            />
-            <Text style={{ marginLeft: 10, fontWeight: "bold" }}>
-              {uploadedBy?.name}
-            </Text>
-          </View>
-          {auth.currentUser?.email === data?.uploadedBy?.email && (
-            <TouchableOpacity onPress={deletePost} style={{ marginRight: 10 }}>
-              <Icon name="trash" size={20} color="red" />
-            </TouchableOpacity>
-          )}
-        </View>
-        <Text style={{ marginHorizontal: 10, marginTop: 10 }}>
-          {data?.content}
-        </Text>
-      </View>
+      <Text style={styles.postContent}>{data?.content}</Text>
 
-      {data && data?.media && (
-        <View style={{ alignItems: "center", marginTop: 20 }}>
+      {data?.media && (
+        <View style={styles.mediaContainer}>
           {isLoading && (
             <ActivityIndicator
-              size="small"
-              color="#0000ff"
-              style={{ position: "absolute" }}
+              size="large"
+              color="#0066FF"
+              style={styles.loader}
             />
           )}
           <Image
-            style={{
-              borderRadius: 10,
-              opacity: 0.9,
-              position: "relative",
-              marginHorizontal: 20,
-              width: "95%",
-              height: 140,
-              alignSelf: "center",
-            }}
+            style={styles.postImage}
             source={{ uri: data?.media }}
-            onLoad={handleImageLoad}
-            onLoadEnd={() => setIsLoading(false)}
+            onLoad={() => setIsLoading(false)}
           />
         </View>
       )}
 
-      <View style={[customAppStyles.horizontalLine, { marginTop: 20 }]} />
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          width: "70%",
-          alignSelf: "center",
-          marginTop: 10,
-        }}
-      >
-        <TouchableOpacity onPress={likePost}>
+      <View style={styles.divider} />
+
+      <View style={styles.actionsContainer}>
+        <TouchableOpacity onPress={likePost} style={styles.actionButton}>
           <Icon
-            color={isLiked ? "blue" : "gray"}
             name={isLiked ? "thumbs-up" : "thumbs-o-up"}
             size={25}
+            color={isLiked ? "#0066FF" : "#666"}
           />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setisCommenting(!isCommenting)}>
-          <Icon color={"gray"} name="comments-o" size={25} />
+
+        <TouchableOpacity
+          onPress={() => setisCommenting(!isCommenting)}
+          style={styles.actionButton}
+        >
+          <Icon name="comments-o" size={25} color="#666" />
         </TouchableOpacity>
-        <TouchableOpacity>
-          <Icon color={"gray"} name="share" size={25} />
-        </TouchableOpacity>
+
+        {/* <TouchableOpacity style={styles.actionButton}>
+          <Icon name="share" size={25} color="#666" />
+        </TouchableOpacity> */}
       </View>
+
       {isCommenting && (
         <View style={styles.commentsSection}>
           <View style={styles.addCommentContainer}>
             <CustomInput
-              mt={20}
-              label={"Add a Comment"}
-              placeholder={"Enter comment"}
+              label="Add a Comment"
+              placeholder="Write something..."
               value={comment}
               onChangeText={setcomment}
+              mt={20}
             />
             <TouchableOpacity
               onPress={addComment}
-              style={styles.postCommentButton}
+              style={[
+                styles.postCommentButton,
+                !comment.trim() && styles.disabledButton,
+              ]}
+              disabled={!comment.trim()}
             >
               <Text style={styles.postCommentText}>Post</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.commentsListContainer}>
-            <Text style={styles.commentsHeader}>All Comments</Text>
+            <Text style={styles.commentsHeader}>Comments</Text>
             <FlatList
               data={comments}
               renderItem={renderComment}
               keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
             />
           </View>
 
@@ -305,9 +267,72 @@ const CustomPost = ({ data, onRefresh }) => {
 export default CustomPost;
 
 const styles = StyleSheet.create({
+  container: {
+    backgroundColor: "#fff",
+    marginBottom: 10,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#E5E5E5",
+    marginVertical: 15,
+  },
+  postHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 15,
+  },
+  userInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  userPhoto: {
+    height: 50,
+    width: 50,
+    borderRadius: 25,
+  },
+  userName: {
+    marginLeft: 12,
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+  deletePostButton: {
+    padding: 8,
+  },
+  postContent: {
+    paddingHorizontal: 15,
+    paddingTop: 12,
+    fontSize: 15,
+    lineHeight: 22,
+    color: "#333",
+  },
+  mediaContainer: {
+    marginTop: 15,
+    alignItems: "center",
+  },
+  loader: {
+    position: "absolute",
+    zIndex: 1,
+  },
+  postImage: {
+    width: "95%",
+    height: 200,
+    borderRadius: 12,
+  },
+  actionsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingVertical: 12,
+    width: "70%",
+    alignSelf: "center",
+  },
+  actionButton: {
+    padding: 8,
+  },
   commentsSection: {
-    marginTop: 20,
-    paddingHorizontal: 20,
+    paddingHorizontal: 15,
+    paddingBottom: 15,
   },
   addCommentContainer: {
     marginBottom: 20,
@@ -315,26 +340,43 @@ const styles = StyleSheet.create({
   postCommentButton: {
     alignSelf: "flex-end",
     marginTop: 10,
+    backgroundColor: "#0066FF",
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
   postCommentText: {
-    color: "blue",
+    color: "#fff",
     fontSize: 14,
-    fontWeight: "bold",
+    fontWeight: "600",
   },
   commentsListContainer: {
     marginBottom: 20,
   },
   commentsHeader: {
-    fontWeight: "500",
-    marginBottom: 10,
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 15,
+    color: "#333",
   },
   commentContainer: {
     flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "lightgray",
-    padding: 10,
-    borderRadius: 10,
+    alignItems: "flex-start",
+    backgroundColor: "#F5F5F5",
+    padding: 12,
+    borderRadius: 12,
     marginBottom: 10,
+  },
+  commentContent: {
+    flex: 1,
+  },
+  commentHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
   },
   commentUserPhoto: {
     width: 30,
@@ -342,24 +384,26 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     marginRight: 10,
   },
-  commentContent: {
-    flex: 1,
-  },
   commentUserName: {
-    fontWeight: "bold",
-    marginBottom: 5,
+    fontWeight: "600",
+    color: "#333",
+  },
+  commentText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#444",
   },
   deleteButton: {
-    padding: 5,
+    padding: 8,
   },
   closeCommentsButton: {
-    backgroundColor: "#ddd",
-    padding: 10,
-    borderRadius: 5,
+    backgroundColor: "#F5F5F5",
+    padding: 12,
+    borderRadius: 25,
     alignItems: "center",
   },
   closeCommentsText: {
-    color: "blue",
-    fontWeight: "bold",
+    color: "#0066FF",
+    fontWeight: "600",
   },
 });

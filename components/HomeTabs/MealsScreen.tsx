@@ -24,7 +24,7 @@ const MealsScreen = ({ navigation }) => {
           style={{ height: 20, width: 170, alignSelf: "center" }}
         />
       </View>
-      <View
+      {/* <View
         style={{
           flexDirection: "row",
           alignSelf: "center",
@@ -65,7 +65,17 @@ const MealsScreen = ({ navigation }) => {
             Recipes
           </Text>
         </TouchableOpacity>
-      </View>
+      </View> */}
+      <Text
+        style={{
+          fontSize: 28,
+          fontWeight: "bold",
+          marginTop: 20,
+          marginLeft: 10,
+        }}
+      >
+        Healthy Meals
+      </Text>
       {screenSelected == screens.Recipie && <Recipies />}
       {screenSelected == screens.MyMeals && <MyMeals />}
     </SafeAreaView>

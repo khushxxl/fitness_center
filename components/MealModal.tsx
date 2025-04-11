@@ -45,7 +45,7 @@ const MealModal = ({ modal, setModal, selectedData, setselectedData }) => {
                 borderRadius: 20,
               }}
               source={{
-                uri: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+                uri: selectedData?.imageUrl,
               }}
             />
           </View>
@@ -58,7 +58,7 @@ const MealModal = ({ modal, setModal, selectedData, setselectedData }) => {
               marginTop: 15,
             }}
           >
-            {selectedData?.name}
+            {selectedData?.title}
           </Text>
           <View
             style={{
@@ -71,7 +71,7 @@ const MealModal = ({ modal, setModal, selectedData, setselectedData }) => {
             }}
           >
             <Text style={{ textAlign: "center", fontWeight: "bold" }}>
-              Calories: 320 kcal
+              Calories: {selectedData?.calories} kcal
             </Text>
           </View>
           <View
@@ -84,7 +84,7 @@ const MealModal = ({ modal, setModal, selectedData, setselectedData }) => {
                 color: "gray",
               }}
             >
-              Carbs: {selectedData?.macros?.carbs}
+              Carbs: {selectedData?.carbs}
             </Text>
             <Text
               style={{
@@ -94,7 +94,7 @@ const MealModal = ({ modal, setModal, selectedData, setselectedData }) => {
                 marginLeft: 10,
               }}
             >
-              Protein: {selectedData?.macros?.proteins}
+              Protein: {selectedData?.protein}
             </Text>
             <Text
               style={{
@@ -104,7 +104,7 @@ const MealModal = ({ modal, setModal, selectedData, setselectedData }) => {
                 marginLeft: 10,
               }}
             >
-              Fats: {selectedData?.macros?.fats}
+              Fats: {selectedData?.fats}
             </Text>
           </View>
 
@@ -131,7 +131,7 @@ const MealModal = ({ modal, setModal, selectedData, setselectedData }) => {
                           fontSize: 15,
                         }}
                       >
-                        {data.name}
+                        {data?.item}
                       </Text>
                       <View
                         style={{
@@ -160,7 +160,7 @@ const MealModal = ({ modal, setModal, selectedData, setselectedData }) => {
             <Text style={{ fontWeight: "bold", fontSize: 24, color: "gray" }}>
               Cooking Methods
             </Text>
-            {selectedData?.cookingMethod?.map((data, i) => {
+            {selectedData?.steps?.map((data, i) => {
               return (
                 <Text
                   key={i}

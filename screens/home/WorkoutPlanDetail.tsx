@@ -1,4 +1,11 @@
-import { StyleSheet, Text, View, SafeAreaView, ScrollView } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  SafeAreaView,
+  ScrollView,
+  ActivityIndicator,
+} from "react-native";
 import React, { useEffect, useState } from "react";
 import CustomIcon from "../../components/CustomIcon";
 import { customAppStyles } from "../../utils/styles";
@@ -47,6 +54,7 @@ const WorkoutPlanDetail = ({ route, navigation }) => {
   const [workoutsList, setWorkoutsList] = useState([]);
   const [selectedWorkout, setSelectedWorkout] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const handleWorkoutPress = (workout) => {
     setSelectedWorkout(workout);
@@ -55,15 +63,24 @@ const WorkoutPlanDetail = ({ route, navigation }) => {
 
   useEffect(() => {
     const fetchWorkoutDetailsInner = async () => {
-      if (workoutsData?.workouts) {
-        const workoutDetails = await fetchWorkoutDetails(workoutsData.workouts);
-        const workoutsWithDetails = workoutsData.workouts.map(
-          (workout, index) => ({
-            ...workout,
-            workout: workoutDetails[index],
-          })
-        );
-        setWorkoutsList(workoutsWithDetails);
+      setIsLoading(true);
+      try {
+        if (workoutsData?.workouts) {
+          const workoutDetails = await fetchWorkoutDetails(
+            workoutsData.workouts
+          );
+          const workoutsWithDetails = workoutsData.workouts.map(
+            (workout, index) => ({
+              ...workout,
+              workout: workoutDetails[index],
+            })
+          );
+          setWorkoutsList(workoutsWithDetails);
+        }
+      } catch (error) {
+        console.error("Error fetching workout details:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchWorkoutDetailsInner();
@@ -71,49 +88,58 @@ const WorkoutPlanDetail = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
-      <ScrollView style={{ flex: 1 }}>
-        <ExerciseInfoModal
-          isModalVisible={isModalVisible}
-          setIsModalVisible={setIsModalVisible}
-          selectedWorkout={selectedWorkout}
-        />
-        <View
-          style={{
-            flexDirection: "row",
-            marginTop: 20,
-            marginLeft: 10,
-            alignItems: "center",
-            gap: 10,
-          }}
-        >
-          <CustomIcon
-            name={"chevron-back"}
-            onClick={() => navigation?.goBack()}
-            styles={false}
-          />
-          <Text style={[customAppStyles.headerTitle]}>{workoutsData?.day}</Text>
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#0086C9" />
+          <Text style={styles.loadingText}>Loading workouts...</Text>
         </View>
-
-        <Text
-          style={[
-            customAppStyles.headerTitle,
-            { marginLeft: 20, marginVertical: 20 },
-          ]}
-        >
-          Exercises assigned
-        </Text>
-        {workoutsList.map((workout, index) => (
-          <CustomCard
-            key={index}
-            title={workout?.workout?.name}
-            subtitle={
-              "Reps: " + workout?.reps + "     " + "Sets: " + workout?.sets
-            }
-            onPress={() => handleWorkoutPress(workout)}
-            navigationText="Open Details"
+      ) : (
+        <ScrollView style={{ flex: 1 }}>
+          <ExerciseInfoModal
+            isModalVisible={isModalVisible}
+            setIsModalVisible={setIsModalVisible}
+            selectedWorkout={selectedWorkout}
           />
-        ))}
-      </ScrollView>
+          <View
+            style={{
+              flexDirection: "row",
+              marginTop: 20,
+              marginLeft: 10,
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <CustomIcon
+              name={"chevron-back"}
+              onClick={() => navigation?.goBack()}
+              styles={false}
+            />
+            <Text style={[customAppStyles.headerTitle]}>
+              {workoutsData?.day}
+            </Text>
+          </View>
+
+          <Text
+            style={[
+              customAppStyles.headerTitle,
+              { marginLeft: 20, marginVertical: 20 },
+            ]}
+          >
+            Exercises assigned
+          </Text>
+          {workoutsList.map((workout, index) => (
+            <CustomCard
+              key={index}
+              title={workout?.workout?.name}
+              subtitle={
+                "Reps: " + workout?.reps + "     " + "Sets: " + workout?.sets
+              }
+              onPress={() => handleWorkoutPress(workout)}
+              navigationText="Open Details"
+            />
+          ))}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 };
@@ -121,6 +147,16 @@ const WorkoutPlanDetail = ({ route, navigation }) => {
 export default WorkoutPlanDetail;
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: "#666",
+  },
   tableContainer: {
     margin: 16,
     borderRadius: 8,

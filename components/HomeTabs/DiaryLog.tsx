@@ -246,9 +246,7 @@ const DiaryLog = ({ navigation }) => {
             <CustomCard
               key={i}
               title={data?.planName}
-              description={
-                "Your trainer has added a 12 Week Workout plan for you"
-              }
+              description={data?.planDescription}
               onPress={function (): void {
                 navigation.navigate(screens.WorkoutPlanScreen, {
                   planDetails: data,

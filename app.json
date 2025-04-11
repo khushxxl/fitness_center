@@ -2,7 +2,7 @@
   "expo": {
     "name": "Fit Centre",
     "slug": "client",
-    "version": "1.1.2",
+    "version": "1.1.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -26,7 +26,7 @@
         "NSHealthShareUsageDescription": "Fit Centre needs access to your health data to track and analyze your fitness activities.",
         "NSHealthUpdateUsageDescription": "Fit Centre needs permission to update your health data to record your fitness activities and progress."
       },
-      "buildNumber": "8"
+      "buildNumber": "10"
     },
     "android": {
       "adaptiveIcon": {

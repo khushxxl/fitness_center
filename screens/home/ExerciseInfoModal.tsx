@@ -135,7 +135,8 @@ const ExerciseInfoModal = ({
                     marginLeft: 20,
                     marginBottom: 10,
                     fontWeight: "bold",
-                    fontSize: 18,
+                    fontSize: 14,
+                    maxWidth: "80%",
                   }}
                 >
                   {index + 1}. {step}

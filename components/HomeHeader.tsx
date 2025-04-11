@@ -1,7 +1,7 @@
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import React, { useContext, useEffect, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { images, screens } from "../utils/constants";
+import { images, screens, Trainer_Email } from "../utils/constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppContext } from "../context/AppContext";
 import { getAuth } from "firebase/auth";
@@ -12,6 +12,18 @@ const HomeHeader = ({ navigation, onImagePress }) => {
   const { appUser } = useContext(AppContext);
   const [userData, setUserData] = useState(null);
   const auth = getAuth();
+
+  const [userTrainer, setUserTrainer] = useState(null);
+
+  const getUserTrainer = async () => {
+    const user = auth.currentUser;
+    const trainer = await getDoc(doc(db, "users", Trainer_Email));
+    setUserTrainer(trainer.data());
+  };
+
+  useEffect(() => {
+    getUserTrainer();
+  }, []);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -26,6 +38,7 @@ const HomeHeader = ({ navigation, onImagePress }) => {
     fetchUserData();
   }, [auth.currentUser]);
 
+  // console.log("userTrainer from header", userTrainer);
   return (
     <View style={styles.container}>
       <View style={styles.leftContainer}>
@@ -48,15 +61,18 @@ const HomeHeader = ({ navigation, onImagePress }) => {
       <View style={styles.rightContainer}>
         <TouchableOpacity
           onPress={() => {
-            navigation.navigate(screens.Inbox);
+            navigation.navigate(screens.ChatScreen, {
+              sender: auth.currentUser?.email,
+              reciever: JSON.stringify(userTrainer),
+            });
           }}
           style={styles.iconButton}
         >
           <Ionicons color={"black"} size={27} name="chatbox-ellipses-outline" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.iconButton}>
+        {/* <TouchableOpacity style={styles.iconButton}>
           <Ionicons size={27} name="notifications-outline" />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
     </View>
   );

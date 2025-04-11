@@ -12,59 +12,51 @@ import {
 } from "react-native";
 import React, { useEffect, useRef, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
-
 import ChatBox from "../../components/ChatBox";
 import CustomInput from "../../components/CustomInput";
 import {
   addDoc,
-  and,
   collection,
   doc,
   getDoc,
   getDocs,
-  or,
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
-  where,
 } from "firebase/firestore";
 import { db, storage, auth } from "../../utils/firebase";
-import { getBlobFroUri, getChatTimeFormat } from "../../utils/constants";
+import {
+  getBlobFroUri,
+  getChatTimeFormat,
+  Trainer_Email,
+} from "../../utils/constants";
 import * as DocumentPicker from "expo-document-picker";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
 const ChatScreen = ({ route, navigation }) => {
-  const [userTrainer, setuserTrainer] = useState<any>();
-  const [currentUser, setCurrentUser] = useState(null);
   const { sender, reciever } = route?.params;
+  const userTrainer = JSON.parse(reciever);
 
-  console.log("receiver ->", reciever);
-  const [message, setmessage] = useState("");
-  const [allMessages, setallMessages] = useState<any>([]);
-  const [mediaSelected, setmediaSelected] = useState(null);
-  const [mediaBlob, setmediaBlob] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [message, setMessage] = useState("");
+  const [allMessages, setAllMessages] = useState([]);
+  const [mediaSelected, setMediaSelected] = useState(null);
+  const [mediaBlob, setMediaBlob] = useState(null);
   const scrollViewRef = useRef(null);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user: any) => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
         setCurrentUser(user);
-        if (!user.isTrainer) {
-          console.log("User Account");
-          getUserTrainer();
-        }
       }
     });
 
     getAllInChatMessages();
-    const interval = setInterval(() => {
-      getAllInChatMessages();
-    }, 5000);
+    setInterval(getAllInChatMessages, 6000);
 
     return () => {
       unsubscribe();
-      clearInterval(interval);
+      // clearInterval(interval);
     };
   }, []);
 
@@ -75,297 +67,169 @@ const ChatScreen = ({ route, navigation }) => {
   }, [allMessages]);
 
   const getAllInChatMessages = async () => {
-    const messages = [];
+    try {
+      // The issue was here - we need to use sender instead of sender.email since sender is already the email string
+      const chatPath = `chats/${sender + Trainer_Email}/chat`;
+      // console.log("Fetching messages from path:", chatPath);
 
-    console.log(sender?.trainer);
+      const chatRef = collection(db, chatPath);
+      const queryData = query(chatRef, orderBy("timestamp", "asc"));
+      const querySnapshot = await getDocs(queryData);
 
-    const ref = collection(db, `chats/${sender?.email + sender?.trainer}/chat`);
-    const queryData = query(ref, orderBy("timestamp", "asc"));
-    const querySnapshot = await getDocs(queryData);
-    querySnapshot.forEach(async (doc) => {
-      console.log("doc");
-      console.log("Doc", doc.data());
-      await messages.push(doc.data());
-    });
-
-    setallMessages(messages);
-    // console.log("Messages", messages);r
+      const messages = querySnapshot.docs.map((doc) => doc.data());
+      // console.log("Fetched messages:", messages);
+      setAllMessages(messages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+    }
   };
 
-  const getUserTrainer = async () => {
-    const docRef = doc(db, "users", currentUser.trainer);
-    const docSnap = await getDoc(docRef);
-
-    if (docSnap.exists()) {
-      await setuserTrainer(docSnap.data());
-
-      console.log("Document Trainer data:", docSnap.data().name.toLowerCase());
-      console.log(docSnap.data());
-    } else {
-      // docSnap.data() will be undefined in this case
-      console.log("No such document!");
+  const handleFileSelect = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({});
+      setMediaSelected(result.assets[0]);
+      const blob = await getBlobFroUri(result.assets[0].uri);
+      setMediaBlob(blob);
+    } catch (error) {
+      console.error("Error selecting file:", error);
     }
   };
 
   const sendMessage = async () => {
-    const textTime = getChatTimeFormat();
+    if (!message.trim() && !mediaSelected) return;
+    if (!userTrainer) return;
 
-    let downloadMediaURL;
-
-    let imageRef;
-
-    if (mediaSelected) {
-      imageRef = ref(
-        storage,
-        `users/${currentUser?.displayName}/media/${mediaSelected?.name}`
-      );
-    }
-
-    if (mediaSelected && mediaBlob) {
-      await uploadBytes(imageRef, mediaBlob)
-        .then(async (snapshot) => {
-          downloadMediaURL = await getDownloadURL(imageRef);
-          // await console.log(downloadURL);
-        })
-        .catch((e) => {
-          console.log(e);
-        });
-    }
-
-    if (message) {
-      try {
-        const docRef = await addDoc(
-          collection(
-            db,
-            `chats/${
-              currentUser?.isTrainer
-                ? sender?.trainer + sender?.email
-                : sender?.email + sender?.trainer
-            }/chat`
-          ),
-          {
-            sender: sender,
-            receiver: reciever,
-            timestamp: serverTimestamp(),
-            text: message,
-            media: downloadMediaURL ? downloadMediaURL : null,
-            timeSent: textTime,
-            mediaName: mediaSelected ? mediaSelected?.name : null,
-          }
+    try {
+      let downloadMediaURL;
+      if (mediaSelected && mediaBlob) {
+        const imageRef = ref(
+          storage,
+          `users/${currentUser?.displayName}/media/${mediaSelected?.name}`
         );
-        await getAllInChatMessages();
-        setmessage("");
-        setmediaBlob(null);
-        setmediaSelected(null);
-        console.log("Document written with ID: ", docRef.id);
-      } catch (e) {
-        console.error("Error adding document: ", e);
+        await uploadBytes(imageRef, mediaBlob);
+        downloadMediaURL = await getDownloadURL(imageRef);
       }
+
+      const chatPath = `chats/${sender + Trainer_Email}/chat`;
+
+      await addDoc(collection(db, chatPath), {
+        sender,
+        receiver: Trainer_Email,
+        timestamp: serverTimestamp(),
+        text: message,
+        media: downloadMediaURL || null,
+        timeSent: getChatTimeFormat(),
+        mediaName: mediaSelected?.name || null,
+      });
+
+      await getAllInChatMessages();
+      setMessage("");
+      setMediaBlob(null);
+      setMediaSelected(null);
+    } catch (error) {
+      console.error("Error sending message:", error);
     }
   };
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
+  const renderMessage = (data, index) => (
+    <View key={index}>
       <View
-        style={{
-          margin: 10,
-          flexDirection: "row",
-          alignItems: "center",
-          marginVertical: 16,
-        }}
+        style={[
+          styles.messageContainer,
+          {
+            alignSelf: data?.sender === sender ? "flex-end" : "flex-start",
+          },
+        ]}
       >
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <TouchableOpacity
-            onPress={() => {
-              navigation.goBack();
-            }}
-          >
-            <Ionicons name="chevron-back" size={25} color={"black"} />
+        <Text style={styles.messageText}>{data?.text}</Text>
+        {data?.timeSent && (
+          <Text style={styles.timeText}>{data?.timeSent}</Text>
+        )}
+      </View>
+
+      {data?.media && (
+        <TouchableOpacity
+          onPress={() => Linking.openURL(data?.media)}
+          style={[
+            styles.mediaContainer,
+            {
+              alignSelf: data?.sender === sender ? "flex-end" : "flex-start",
+            },
+          ]}
+        >
+          <View style={styles.mediaContent}>
+            <Ionicons name="document" size={35} color="black" />
+            <Text style={styles.mediaName}>{data?.mediaName}</Text>
+          </View>
+          <TouchableOpacity>
+            <Ionicons name="open-outline" size={23} color="black" />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={25} color="black" />
           </TouchableOpacity>
           <Image
-            src={reciever?.photo}
-            style={{ height: 50, width: 50, borderRadius: 25, marginLeft: 10 }}
+            source={{ uri: userTrainer?.photo }}
+            style={styles.profileImage}
           />
         </View>
-        <View
-          style={{ marginLeft: 10, flexDirection: "row", alignItems: "center" }}
-        >
-          <Text style={{ fontWeight: "bold" }}>{reciever?.name}</Text>
-          <Text style={{ fontWeight: "bold" }}>
+        <View style={styles.headerInfo}>
+          <Text style={styles.userName}>{userTrainer?.name}</Text>
+          <Text style={styles.userRole}>
             {!currentUser?.isTrainer ? " - Senior Trainer" : " - User"}
           </Text>
         </View>
       </View>
 
-      <View>
-        <ScrollView
-          ref={scrollViewRef}
-          keyboardDismissMode="on-drag"
-          style={{ height: "75%" }}
-          onContentSizeChange={() =>
-            scrollViewRef.current.scrollToEnd({ animated: true })
-          }
-        >
-          {allMessages &&
-            allMessages.map((data, i) => {
-              console.log(data);
-              return (
-                <View key={i}>
-                  <View
-                    key={i}
-                    style={{
-                      backgroundColor: "#0086C9",
-                      padding: 7,
-                      marginTop: 10,
-                      borderRadius: 10,
-                      margin: 10,
-                      alignSelf:
-                        data?.sender?.email == sender?.email
-                          ? "flex-end"
-                          : "flex-start",
-                      paddingHorizontal: 14,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: "white",
-                        fontWeight: "600",
-                        fontSize: 17,
-                      }}
-                    >
-                      {data?.text}
-                    </Text>
-                    {data?.timeSent && (
-                      <Text
-                        style={{
-                          color: "lightgray",
-                          fontWeight: "600",
-                          fontSize: 12,
-                          marginTop: 5,
-                        }}
-                      >
-                        {data?.timeSent}
-                      </Text>
-                    )}
-                  </View>
-                  {data?.media && (
-                    <TouchableOpacity
-                      onPress={() => {
-                        Linking.openURL(data?.media);
-                      }}
-                      style={{
-                        backgroundColor: "white",
-                        marginHorizontal: 10,
-                        borderColor: "lightgray",
-                        borderWidth: 1,
-                        padding: 8,
-                        borderRadius: 10,
-                        marginVertical: 5,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        alignSelf:
-                          data?.sender?.email == sender?.email
-                            ? "flex-end"
-                            : "flex-start",
-                      }}
-                    >
-                      <View
-                        style={{ flexDirection: "row", alignItems: "center" }}
-                      >
-                        <Ionicons name="document" size={35} color={"black"} />
-                        <Text style={{ marginLeft: 10, fontWeight: "500" }}>
-                          {data?.mediaName}
-                        </Text>
-                      </View>
-                      <TouchableOpacity
-                        style={{ marginLeft: 10 }}
-                        onPress={() => setmediaSelected(null)}
-                      >
-                        <Ionicons
-                          name="open-outline"
-                          size={23}
-                          color={"black"}
-                        />
-                      </TouchableOpacity>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              );
-            })}
-        </ScrollView>
-      </View>
-      <KeyboardAvoidingView
-        style={{ position: "absolute", bottom: 30, width: "100%" }}
-        contentContainerStyle={{
-          height: "100%",
-          width: "100%",
-          alignSelf: "center",
-        }}
-        behavior="position"
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.messagesContainer}
+        keyboardDismissMode="on-drag"
+        onContentSizeChange={() =>
+          scrollViewRef.current?.scrollToEnd({ animated: true })
+        }
       >
+        {allMessages.map((data, index) => renderMessage(data, index))}
+      </ScrollView>
+
+      <KeyboardAvoidingView style={styles.inputContainer} behavior="position">
         {mediaSelected && (
-          <View
-            style={{
-              backgroundColor: "white",
-              marginHorizontal: 10,
-              borderColor: "lightgray",
-              borderWidth: 0.5,
-              padding: 8,
-              borderRadius: 10,
-              marginVertical: 5,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Ionicons name="document" size={35} color={"black"} />
-              <Text style={{ marginLeft: 10, fontWeight: "500" }}>
-                {mediaSelected?.name}
-              </Text>
+          <View style={styles.selectedMedia}>
+            <View style={styles.mediaContent}>
+              <Ionicons name="document" size={35} color="black" />
+              <Text style={styles.mediaName}>{mediaSelected?.name}</Text>
             </View>
-            <TouchableOpacity onPress={() => setmediaSelected(null)}>
-              <Ionicons name="close-outline" size={26} color={"black"} />
+            <TouchableOpacity onPress={() => setMediaSelected(null)}>
+              <Ionicons name="close-outline" size={26} color="black" />
             </TouchableOpacity>
           </View>
         )}
-        <View
-          style={{
-            borderColor: "#D0D5DD",
-            borderWidth: 2.7,
-            padding: 10,
-            borderRadius: 10,
-            height: 50,
-            justifyContent: "center",
-            marginHorizontal: 10,
-            flexDirection: "row",
-            marginBottom: 3,
-            backgroundColor: "white",
-          }}
-        >
+
+        <View style={styles.inputWrapper}>
           <TouchableOpacity
-            onPress={async () => {
-              let result = await DocumentPicker.getDocumentAsync({});
-              setmediaSelected(result.assets[0]);
-              const blob = await getBlobFroUri(result.assets[0].uri);
-              console.log(blob);
-              setmediaBlob(blob);
-            }}
-            style={{ marginLeft: 5, marginRight: 20 }}
+            onPress={handleFileSelect}
+            style={styles.attachButton}
           >
-            <Ionicons name="document-outline" size={20} color={"gray"} />
+            <Ionicons name="document-outline" size={20} color="gray" />
           </TouchableOpacity>
 
           <TextInput
-            onChangeText={setmessage}
-            style={{ flex: 1 }}
-            placeholder="Enter Message"
             value={message}
+            onChangeText={setMessage}
+            style={styles.input}
+            placeholder="Enter Message"
           />
 
-          <TouchableOpacity onPress={sendMessage} style={{ marginRight: 10 }}>
-            <Ionicons name="paper-plane-outline" size={20} color={"gray"} />
+          <TouchableOpacity onPress={sendMessage} style={styles.sendButton}>
+            <Ionicons name="paper-plane-outline" size={20} color="gray" />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -375,4 +239,117 @@ const ChatScreen = ({ route, navigation }) => {
 
 export default ChatScreen;
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "white",
+  },
+  header: {
+    margin: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 16,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerInfo: {
+    marginLeft: 10,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  profileImage: {
+    height: 50,
+    width: 50,
+    borderRadius: 25,
+    marginLeft: 10,
+  },
+  userName: {
+    fontWeight: "bold",
+  },
+  userRole: {
+    fontWeight: "bold",
+  },
+  messagesContainer: {
+    height: "75%",
+  },
+  messageContainer: {
+    backgroundColor: "#0086C9",
+    padding: 7,
+    marginTop: 10,
+    borderRadius: 10,
+    margin: 10,
+    paddingHorizontal: 14,
+  },
+  messageText: {
+    color: "white",
+    fontWeight: "600",
+    fontSize: 17,
+  },
+  timeText: {
+    color: "lightgray",
+    fontWeight: "600",
+    fontSize: 12,
+    marginTop: 5,
+  },
+  mediaContainer: {
+    backgroundColor: "white",
+    marginHorizontal: 10,
+    borderColor: "lightgray",
+    borderWidth: 1,
+    padding: 8,
+    borderRadius: 10,
+    marginVertical: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  mediaContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  mediaName: {
+    marginLeft: 10,
+    fontWeight: "500",
+  },
+  inputContainer: {
+    position: "absolute",
+    bottom: 30,
+    width: "100%",
+  },
+  selectedMedia: {
+    backgroundColor: "white",
+    marginHorizontal: 10,
+    borderColor: "lightgray",
+    borderWidth: 0.5,
+    padding: 8,
+    borderRadius: 10,
+    marginVertical: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  inputWrapper: {
+    borderColor: "#D0D5DD",
+    borderWidth: 2.7,
+    padding: 10,
+    borderRadius: 10,
+    height: 50,
+    justifyContent: "center",
+    marginHorizontal: 10,
+    flexDirection: "row",
+    marginBottom: 3,
+    backgroundColor: "white",
+  },
+  attachButton: {
+    marginLeft: 5,
+    marginRight: 20,
+  },
+  input: {
+    flex: 1,
+  },
+  sendButton: {
+    marginRight: 10,
+  },
+});

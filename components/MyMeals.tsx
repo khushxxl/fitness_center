@@ -15,13 +15,9 @@ import {
   getFirestore,
 } from "firebase/firestore";
 import { AppContext } from "../context/AppContext";
-import {
-  breakfast_recipes,
-  dinner_recipes,
-  lunch_recipes,
-  screens,
-} from "../utils/constants";
+import { screens } from "../utils/constants";
 import { useNavigation } from "@react-navigation/native";
+import { db } from "../utils/firebase";
 
 const MyMeals = () => {
   const { userData } = useContext(AppContext);
@@ -34,88 +30,85 @@ const MyMeals = () => {
   );
   const [fatsContent, setfatsContent] = useState<any>(userData?.macros?.fats);
   const navigation = useNavigation();
+
+  const breakfastImage =
+    "https://images.unsplash.com/photo-1504754524776-8f4f37790ca0?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
+  const lunchImage =
+    "https://images.unsplash.com/photo-1627662236973-4fd8358fa206?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
+  const dinnerImage =
+    "https://images.unsplash.com/photo-1536236502598-7dd171f8e852?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
+  const snackImage =
+    "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
+
   const MacrosBox = ({ text, data }) => {
     return (
-      <View style={{ alignItems: "center" }}>
-        <Text style={{ fontSize: 14 }}>{text}</Text>
-        <Text style={{ fontWeight: "bold" }}>{data}gm</Text>
+      <View style={styles.macrosBox}>
+        <Text style={styles.macrosLabel}>{text}</Text>
+        <Text style={styles.macrosValue}>{data}gm</Text>
       </View>
     );
   };
 
-  const FoodBox = ({ mealType, data }) => {
+  const [recipes, setRecipes] = useState<any[]>([]);
+
+  useEffect(() => {
+    getRecipes();
+  }, []);
+
+  const getRecipes = async () => {
+    const querySnapshot = await getDocs(collection(db, "recipes"));
+    const recipesData: any[] = [];
+    querySnapshot.forEach((doc) => {
+      recipesData.push({ ...doc.data(), id: doc.id });
+    });
+    setRecipes(recipesData);
+  };
+
+  // console.log(recipes);
+  const FoodBox = ({ mealType = "", recipes }) => {
+    const filteredRecipes = recipes.filter((recipe) =>
+      recipe?.tags?.includes(mealType?.toLowerCase())
+    );
+
+    console.log(filteredRecipes);
+
     return (
       <TouchableOpacity
-        onPress={() =>
-          navigation.navigate(screens.DetailRecipe, { data: data })
-        }
-        style={{
-          marginTop: 30,
-          marginHorizontal: 20,
+        onPress={() => {
+          // console.log(filteredRecipes);
+          navigation.navigate(screens.DetailRecipe, { data: filteredRecipes });
         }}
+        style={[styles.foodBox, { marginTop: 20 }]}
       >
         <Image
-          style={{ borderRadius: 10, opacity: 0.9, position: "relative" }}
-          height={100}
+          style={styles.foodImage}
+          height={180}
           source={{
-            uri: "https://plus.unsplash.com/premium_photo-1670601440146-3b33dfcd7e17?q=80&w=3038&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+            uri:
+              mealType == "Breakfast"
+                ? breakfastImage
+                : mealType == "Lunch"
+                  ? lunchImage
+                  : mealType == "Dinner"
+                    ? dinnerImage
+                    : snackImage,
           }}
         />
-        <View
-          style={{
-            backgroundColor: "white",
-            width: "100%",
-            marginTop: 10,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 17,
-              fontWeight: "bold",
-              marginLeft: 10,
-              color: "#5A5A5A",
-            }}
-          >
-            {mealType}
-          </Text>
+        <View style={styles.foodLabelContainer}>
+          <Text style={styles.foodLabel}>{mealType}</Text>
         </View>
       </TouchableOpacity>
     );
   };
 
   return (
-    <ScrollView>
+    <ScrollView style={styles.container}>
       {(proteinContent || carbsContent || fatsContent) && (
-        <View>
-          <Text
-            style={{
-              fontSize: 18,
-              marginTop: 30,
-              marginLeft: 20,
-              fontWeight: "bold",
-            }}
-          >
-            Your Macros Target
-          </Text>
+        <View style={styles.macrosContainer}>
+          <Text style={styles.macrosTitle}>Your Macros Target</Text>
 
-          <View
-            style={{
-              alignSelf: "center",
-              width: "80%",
-              marginTop: 9,
-              borderWidth: 0.5,
-              borderColor: "gray",
-              padding: 10,
-              borderRadius: 10,
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-evenly",
-                width: "100%",
-              }}
-            >
+          <View style={styles.macrosCard}>
+            <View style={styles.macrosRow}>
               {proteinContent && (
                 <MacrosBox text={"Protein"} data={proteinContent} />
               )}
@@ -135,9 +128,10 @@ const MyMeals = () => {
           </View>
         </View>
       )}
-      <FoodBox mealType={"Breakfast"} data={breakfast_recipes} />
-      <FoodBox mealType={"Lunch"} data={lunch_recipes} />
-      <FoodBox mealType={"Dinner"} data={dinner_recipes} />
+      <FoodBox mealType={"Breakfast"} recipes={recipes} />
+      <FoodBox mealType={"Lunch"} recipes={recipes} />
+      <FoodBox mealType={"Dinner"} recipes={recipes} />
+      <FoodBox mealType={"Snack"} recipes={recipes} />
       <View style={{ height: 20 }} />
     </ScrollView>
   );
@@ -146,9 +140,93 @@ const MyMeals = () => {
 export default MyMeals;
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "white",
+  },
+  macrosContainer: {
+    marginBottom: 20,
+  },
+  macrosTitle: {
+    fontSize: 24,
+    marginTop: 30,
+    marginLeft: 20,
+    fontWeight: "bold",
+    color: "#2c3e50",
+  },
+  macrosCard: {
+    alignSelf: "center",
+    width: "90%",
+    marginTop: 15,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    padding: 20,
+    borderRadius: 15,
+    backgroundColor: "white",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  macrosRow: {
+    flexDirection: "row",
+    justifyContent: "space-evenly",
+    width: "100%",
+  },
+  macrosBox: {
+    alignItems: "center",
+    padding: 10,
+  },
+  macrosLabel: {
+    fontSize: 16,
+    color: "#7f8c8d",
+    marginBottom: 5,
+  },
+  macrosValue: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#2c3e50",
+  },
   verticalLine: {
     height: "100%",
-    width: 0.9,
-    backgroundColor: "gray",
+    width: 1,
+    backgroundColor: "#e0e0e0",
+  },
+  foodBox: {
+    marginVertical: 10,
+    marginHorizontal: 20,
+    borderRadius: 15,
+    backgroundColor: "white",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+    marginTop: 10,
+  },
+  foodImage: {
+    width: "100%",
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
+    opacity: 0.9,
+    height: 130,
+  },
+  foodLabelContainer: {
+    padding: 15,
+    backgroundColor: "white",
+    borderBottomLeftRadius: 15,
+    borderBottomRightRadius: 15,
+  },
+  foodLabel: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#2c3e50",
   },
 });
