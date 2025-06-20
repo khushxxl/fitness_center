@@ -42,13 +42,13 @@ const AuthScreen = ({ navigation }) => {
             }}
           >
             <CustomButton
-              onClick={() => navigation.navigate(screens.Signup)}
+              onClick={() => navigation.replace(screens.Signup)}
               title={"Sign Up"}
               textColor={"white"}
               colors={["#4c669f", "#3b5998", "#192f6a"]}
             />
             <CustomButton
-              onClick={() => navigation.navigate(screens.Signin)}
+              onClick={() => navigation.replace(screens.Signin)}
               title={"Login"}
               textColor={"black"}
               colors={["#fff", "#fff", "#fff"]}

@@ -15,7 +15,6 @@ import { doc, updateDoc, deleteDoc, getDoc } from "firebase/firestore";
 import { db, storage } from "../../utils/firebase";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { getBlobFroUri, screens } from "../../utils/constants";
-import { useStripe } from "@stripe/stripe-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import EditProfileSheet from "../CustomComponents/EditProfileSheet";
 import CustomIcon from "../CustomIcon";

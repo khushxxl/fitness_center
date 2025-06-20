@@ -30,6 +30,7 @@ const SplashScreen = ({ navigation }) => {
   } = useContext(AppContext);
 
   const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState(null);
 
   const getData = async (email) => {
     try {
@@ -126,19 +127,55 @@ const SplashScreen = ({ navigation }) => {
     settrainerWorkoutLog(logs);
   };
 
+  const checkUser = async () => {
+    setTimeout(async () => {
+      getUser();
+    }, 1000);
+  };
+
+  const getUser = async () => {
+    if (user?.email) {
+      const docRef = doc(db, "users", user?.email);
+      const docSnap = await getDoc(docRef);
+      console.log("Doc snap", docSnap.data());
+
+      await getHomePromo();
+      await getSettings();
+      await getAllPosts();
+      await getUserWorkoutLogs(user?.email);
+      await getTrainerLogs(user?.email);
+
+      if (docSnap.exists()) {
+        const userData = docSnap.data();
+        setappUser(userData);
+
+        if (userData != null) {
+          navigation.replace("HomeStack");
+        }
+      } else {
+        if(user){ 
+          navigation.replace("HomeStack");
+        } else {
+          navigation.replace(screens.AuthScreen);
+        }
+      }
+    }
+  };
+
   useEffect(() => {
     const authInstance = getAuth();
     const unsubscribe = onAuthStateChanged(authInstance, (user) => {
+      setUser(user);
       if (user) {
         console.log("User is signed in:", user.email);
         getData(user.email);
       } else {
-        console.log("No user is signed in");
+        setIsLoading(false);
         navigation.navigate(screens.AuthScreen);
       }
     });
 
-    return () => unsubscribe(); // Clean up the listener on unmount
+    return () => unsubscribe();
   }, [navigation]);
 
   if (isLoading) {
@@ -156,8 +193,6 @@ const SplashScreen = ({ navigation }) => {
   return null;
 };
 
-export default SplashScreen;
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -173,3 +208,5 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
 });
+
+export default SplashScreen;

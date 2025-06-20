@@ -1,3 +1,12 @@
 {
+<<<<<<< HEAD
   "urlRandomness": "6q5qzuw"
+=======
+  "hostType": "lan",
+  "lanType": "ip",
+  "dev": true,
+  "minify": false,
+  "urlRandomness": null,
+  "https": false
+>>>>>>> 95c70c445a2a6f030a15a6cd0f900b37e42b8ba7
 }
