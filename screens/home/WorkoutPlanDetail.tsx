@@ -100,40 +100,31 @@ const WorkoutPlanDetail = ({ route, navigation }) => {
             setIsModalVisible={setIsModalVisible}
             selectedWorkout={selectedWorkout}
           />
-          <View
-            style={{
-              flexDirection: "row",
-              marginTop: 20,
-              marginLeft: 10,
-              alignItems: "center",
-              gap: 10,
-            }}
-          >
+          <View style={styles.header}>
             <CustomIcon
               name={"chevron-back"}
               onClick={() => navigation?.goBack()}
               styles={false}
             />
-            <Text style={[customAppStyles.headerTitle]}>
-              {workoutsData?.day}
-            </Text>
+            <View>
+              <Text style={[customAppStyles.headerTitle]}>
+                {workoutsData?.week[0].toUpperCase() +
+                  workoutsData?.week.slice(1)}
+              </Text>
+              <Text style={styles.dayText}>
+                {workoutsData?.day[0].toUpperCase() +
+                  workoutsData?.day.slice(1)}
+              </Text>
+            </View>
           </View>
 
-          <Text
-            style={[
-              customAppStyles.headerTitle,
-              { marginLeft: 20, marginVertical: 20 },
-            ]}
-          >
-            Exercises assigned
-          </Text>
+          <Text style={styles.sectionTitle}>Exercises assigned</Text>
+
           {workoutsList.map((workout, index) => (
             <CustomCard
               key={index}
               title={workout?.workout?.name}
-              subtitle={
-                "Reps: " + workout?.reps + "     " + "Sets: " + workout?.sets
-              }
+              subtitle={`Sets: ${workout?.sets || "0"}     Reps: ${workout?.reps || "0"}`}
               onPress={() => handleWorkoutPress(workout)}
               navigationText="Open Details"
             />
@@ -234,5 +225,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 5,
     lineHeight: 20,
+  },
+  header: {
+    flexDirection: "row",
+    marginTop: 20,
+    marginLeft: 10,
+    alignItems: "center",
+    gap: 10,
+  },
+  dayText: {
+    fontSize: 16,
+    color: "#666",
+    marginTop: 4,
+  },
+  sectionTitle: {
+    ...customAppStyles.headerTitle,
+    marginLeft: 20,
+    marginVertical: 20,
   },
 });

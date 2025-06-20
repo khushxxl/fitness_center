@@ -8,20 +8,23 @@ import { screens } from "../../utils/constants";
 const WorkoutPlan = ({ route, navigation }) => {
   const planDetails = route?.params?.planDetails;
 
-  const getDayIndex = (day: string) => {
-    const days = [
-      "Sunday",
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-    ];
-    return days?.indexOf(day?.split(",")[0]); // In case dayStr includes comma
+  // Helper function to sort weeks numerically
+  const sortWeeks = (weeks: string[]) => {
+    return weeks.sort((a, b) => {
+      const weekA = parseInt(a.split(" ")[1]);
+      const weekB = parseInt(b.split(" ")[1]);
+      return weekA - weekB;
+    });
   };
 
-  console.log(planDetails);
+  // Helper function to sort days numerically
+  const sortDays = (days: string[]) => {
+    return days.sort((a, b) => {
+      const dayA = parseInt(a.split(" ")[1]);
+      const dayB = parseInt(b.split(" ")[1]);
+      return dayA - dayB;
+    });
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
@@ -37,26 +40,37 @@ const WorkoutPlan = ({ route, navigation }) => {
           </Text>
         </View>
 
-        <View style={{ marginTop: 20 }}>
-          {planDetails?.workouts
-            ?.sort((a, b) => getDayIndex(a.dayStr) - getDayIndex(b.dayStr))
-            ?.map((data, i) => {
-              // console.log(data);
+        {planDetails?.description && (
+          <Text style={styles.description}>{planDetails.description}</Text>
+        )}
 
-              return (
-                <CustomCard
-                  key={i}
-                  title={"Day " + data?.dayNumber}
-                  description={""}
-                  onPress={function (): void {
-                    navigation.navigate(screens.WorkoutPlanDetailScreen, {
-                      workoutsData: { ...data, day: "Day " + data?.dayNumber },
-                    });
-                  }}
-                  navigationText="View Details"
-                />
-              );
-            })}
+        <View style={{ marginTop: 20 }}>
+          {sortWeeks(Object.keys(planDetails?.workouts || {})).map(
+            (weekKey) => (
+              <View key={weekKey}>
+                <Text style={styles.weekTitle}>{weekKey}</Text>
+                {sortDays(
+                  Object.keys(planDetails?.workouts[weekKey] || {})
+                ).map((dayKey) => (
+                  <CustomCard
+                    key={dayKey}
+                    title={dayKey[0].toUpperCase() + dayKey.slice(1)}
+                    description={`${planDetails?.workouts[weekKey][dayKey]?.length || 0} exercises`}
+                    onPress={() => {
+                      navigation.navigate(screens.WorkoutPlanDetailScreen, {
+                        workoutsData: {
+                          workouts: planDetails?.workouts[weekKey][dayKey],
+                          day: dayKey,
+                          week: weekKey,
+                        },
+                      });
+                    }}
+                    navigationText="View Details"
+                  />
+                ))}
+              </View>
+            )
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -65,4 +79,19 @@ const WorkoutPlan = ({ route, navigation }) => {
 
 export default WorkoutPlan;
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  weekTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginLeft: 20,
+    marginBottom: 10,
+    marginTop: 20,
+    textTransform: "capitalize",
+  },
+  description: {
+    fontSize: 16,
+    marginHorizontal: 20,
+    marginTop: 10,
+    color: "#666",
+  },
+});
